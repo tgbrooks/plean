@@ -166,11 +166,11 @@ def test_infer_type():
     assert infer_type(infer_type(nat_greater)) == Sort(1)
 
 def test_nat():
-    thm_one_gt_one = Apply(
+    thm_one_gt_zero = Apply(
         nat_succ_greater_zero,
         nat_zero
     )
-    assert infer_type(thm_one_gt_one) == Apply(
+    assert infer_type(thm_one_gt_zero) == Apply(
         Apply(
             nat_greater,
             nat_one,

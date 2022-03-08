@@ -345,23 +345,14 @@ def infer_type(expr: Expression) -> Expression:
         else:
             raise NotImplementedError
     elif isinstance(expr, Apply):
-        reduced_func = whnf(expr.func_expression)
-        if isinstance(reduced_func, Lambda):
-            return infer_type(
-                #???
-                    instantiate(
-                        reduced_func.body,
-                        reduced_func.arg_name,
-                        expr.arg_expression
-                    )
-                )
-        #elif isinstance(expr.func_expression, Apply):
-        #    return infer_type(
-        #        #TODO
-        #    )
+        func_type = infer_type(expr.func_expression)
+        if isinstance(func_type, Pi):
+            return instantiate(
+                func_type.result_type,
+                func_type.arg_name,
+                expr.arg_expression,
+            )
         else:
-            print(pretty_print(expr))
-            print(pretty_print(reduced_func))
             raise NotImplementedError
     elif isinstance(expr, Lambda):
         return Pi(
