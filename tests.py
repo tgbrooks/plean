@@ -11,14 +11,12 @@ q = Variable(Prop, Token("q"))
 f = Lambda(
     Token("p"),
     Prop,
-    Prop,
     x,
 )
 
 # p -> r
 fr = Lambda(
     Token("p"),
-    Prop,
     Prop,
     r,
 )
@@ -30,7 +28,6 @@ app_fr = Apply(fr, q)
 f_id = Lambda(
     Token("p"),
     Prop,
-    Prop,
     Variable(Prop, Token("p"))
 )
 
@@ -38,16 +35,14 @@ f_id = Lambda(
 f_pqp = Lambda(
     Token("p"),
     Prop,
-    Pi(Token("q"), Prop, Prop),
-    Lambda(Token("q"), Prop, Prop, Variable(Prop, Token("p"))),
+    Lambda(Token("q"), Prop, Variable(Prop, Token("p"))),
 )
 
 # p -> q -> q
 f_pqq = Lambda(
     Token("p"),
     Prop,
-    Pi(Token("q"), Prop, Prop),
-    Lambda(Token("q"), Prop, Prop, Variable(Prop, Token("q"))),
+    Lambda(Token("q"), Prop, Variable(Prop, Token("q"))),
 )
 
 # Prop -> Prop -> Prop
@@ -85,7 +80,7 @@ def test_instantiate():
     # Substituting in an expression with a free variable
     # that collides with a bound var will have to rename
     # the bound var
-    assert instantiate(fr, Token('r'), p) == Lambda(Token("p`"), Prop, Prop, p)
+    assert instantiate(fr, Token('r'), p) == Lambda(Token("p`"), Prop, p)
 
 def test_whnf():
     assert whnf(fr) == fr
@@ -124,9 +119,9 @@ def test_is_def_eq():
     )
     assert is_def_eq(
         f_id,
-        Lambda(Token('q'), Prop,  Prop, q),
+        Lambda(Token('q'), Prop, q),
     )
-    assert is_def_eq(f, Lambda(Token('q'), Prop, Prop, x))
+    assert is_def_eq(f, Lambda(Token('q'), Prop, x))
     assert not is_def_eq(f, fr)
     assert not is_def_eq(f_pqp, f_pqq)
     assert is_def_eq(pi, pi)
@@ -138,9 +133,9 @@ def test_is_def_eq():
     assert is_def_eq(nat_one, nat_one)
 
     # Eta conversion
-    assert is_def_eq(f, Lambda(Token("r"), Prop, Prop, Apply(f, r)))
-    assert is_def_eq(Lambda(Token("r"), Prop, Prop, Apply(f, r)), f)
-    assert not is_def_eq(f, Lambda(Token('r'), Prop, Prop, Apply(f, x)))
+    assert is_def_eq(f, Lambda(Token("r"), Prop, Apply(f, r)))
+    assert is_def_eq(Lambda(Token("r"), Prop, Apply(f, r)), f)
+    assert not is_def_eq(f, Lambda(Token('r'), Prop, Apply(f, x)))
 
 def test_infer_type():
     assert infer_type(p) == Prop

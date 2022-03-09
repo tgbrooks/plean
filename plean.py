@@ -47,7 +47,6 @@ class Apply:
 class Lambda:
     arg_name: Token
     arg_type: 'Expression'
-    result_type: 'Expression'
     body: 'Expression'
 
 @dataclass(frozen=True)
@@ -195,7 +194,7 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                 instantiate(func_expression, arg_name, arg_expression),
                 instantiate(app_arg_expression, arg_name, arg_expression),
             )
-        case Lambda(lambda_arg_name, lambda_arg_type, result_type, body):
+        case Lambda(lambda_arg_name, lambda_arg_type, body):
             if lambda_arg_name == arg_name:
                 # arg_name is now bound, don't instantiate it inside the lambda
                 return expr
@@ -209,13 +208,11 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                 expr = Lambda(
                     new_arg_name,
                     expr.arg_type,
-                    instantiate(expr.result_type, expr.arg_name, new_bound_var),
                     instantiate(expr.body, expr.arg_name, new_bound_var)
                 )
             return Lambda(
                 expr.arg_name,
                 instantiate(expr.arg_type, arg_name, arg_expression),
-                instantiate(expr.result_type, arg_name, arg_expression),
                 instantiate(expr.body, arg_name, arg_expression),
             )
         case Constructor(_, _):
@@ -239,7 +236,7 @@ def whnf(t: Expression) -> Expression:
             return t
         case Pi(arg_name, arg_type, result_type):
             return t
-        case Lambda(arg_name, arg_type, result_type, body):
+        case Lambda(arg_name, arg_type, body):
             return t
         case Constructor(_, _):
             return t
@@ -371,7 +368,11 @@ def infer_type(expr: Expression) -> Expression:
         return Pi(
             expr.arg_name,
             expr.arg_type,
-            expr.result_type,
+            infer_type(instantiate(
+                expr.body,
+                expr.arg_name,
+                Variable(expr.arg_type, expr.arg_name),
+            ))
         )
     elif isinstance(expr, Constructor):
         return expr.template.constructed_type
