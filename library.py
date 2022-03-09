@@ -29,6 +29,17 @@ nat_zero = Constructor(
 nat_succ = Nat.constructors[1]
 nat_one = Constructor(nat_succ, args=(nat_zero,))
 
+
+# Sends 0 -> 1 and all others to zero
+nat_twist = Destructor(
+    Nat,
+    (
+        (tuple(), nat_one),
+        ((Token('n'),), nat_zero),
+    ),
+    Nat
+)
+
 nat_greater = Variable(
     Pi(
         Token('n'),

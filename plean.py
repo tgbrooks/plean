@@ -65,7 +65,8 @@ class ConstructedType:
     ]
     type: Sort
     name: Token
-    def _get_constructors(self) -> tuple[ConstructorTemplate]:
+    @property
+    def constructors(self) -> tuple[ConstructorTemplate,...]:
         templates = tuple(ConstructorTemplate(
             name,
             arg_names,
@@ -76,15 +77,22 @@ class ConstructedType:
             self
         ) for name, arg_names, arg_types in self.constructor_info)
         return templates
-    constructors = property(
-        _get_constructors
-    )
 
 
 @dataclass(frozen=True)
 class Constructor:
     template: ConstructorTemplate
     args: tuple['Expression',...]
+
+@dataclass(frozen=True)
+class Destructor:
+    type: ConstructedType 
+    # match_exprs are ( ((a,b,c), expr), ((x,y), expr), ...)
+    # to match constructors like ( (cons1 a b c), (cons2 x y), ...)
+    match_exprs: tuple[
+        tuple[tuple[Token,...], 'Expression'],...
+    ]
+    result_type: 'Expression'
 
 
 Expression = Union[
@@ -95,6 +103,7 @@ Expression = Union[
     Lambda,
     Constructor,
     ConstructedType,
+    Destructor,
 ]
 
 def pretty_print(expr: Expression) -> str:
@@ -114,6 +123,10 @@ def pretty_print(expr: Expression) -> str:
             return f"{t.template.name.val} " + " ".join(pp_args)
         elif isinstance(t, ConstructedType):
             return t.name.val
+        elif isinstance(t, Destructor):
+            matches = [cons.name.val + " " + ' '.join(x.val for x in m[0])
+                            for cons, m in zip(t.type.constructors, t.match_exprs)]
+            return "(" + " | ".join(matches) + ")"
         else:
             raise NotImplementedError
     return pp(expr)
@@ -364,5 +377,11 @@ def infer_type(expr: Expression) -> Expression:
         return expr.template.constructed_type
     elif isinstance(expr, ConstructedType):
         return expr.type
+    elif isinstance(expr, Destructor):
+        return Pi(
+            Token(''), # TODO: unsure, no var here -- can destructors have parametric return types?
+            expr.type,
+            expr.result_type,
+        )
     else:
         raise NotImplementedError
