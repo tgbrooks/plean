@@ -179,3 +179,6 @@ def test_nat():
         nat_twist.result_type,
     )
     assert infer_type(Apply(nat_twist, nat_one)) == Nat
+
+    #assert is_def_eq(Apply(Apply(nat_add, nat_one), nat_zero), nat_one)
+    assert infer_type(Apply(Apply(nat_add, nat_one), nat_zero)) == Nat

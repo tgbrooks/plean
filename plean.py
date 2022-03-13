@@ -223,6 +223,43 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
             )
         case ConstructedType(_):
             return expr
+        case Destructor(_,_,_):
+            match_exprs = []
+            for (args, result), template in zip(expr.match_exprs, expr.type.constructors):
+                if arg_name in args:
+                    # Variable is now bound, do not instantiate it
+                    # inside of the result expression
+                    match_exprs.append((args, result))
+                    continue
+                free_vars_in_arg = free_vars(arg_expression)
+                new_args = []
+                for arg, arg_type in zip(args, template.arg_types):
+                    # Check for clashes where bound args occur in the
+                    # expression being substituted in and avoid those
+                    if arg in free_vars_in_arg:
+                        # Rename destructor arg to avoid clash with free var
+                        new_arg_name = Token(arg_name.val + "`")
+                        new_bound_var = Variable(arg_type, new_arg_name)
+                        result = instantiate(
+                            result,
+                            arg_name,
+                            new_bound_var,
+                        )
+                        new_args.append(new_arg_name)
+                    else:
+                        new_args.append(arg)
+                # Perform the actual instantiation
+                result = instantiate(result, arg_name, arg_expression)
+                match_exprs.append((tuple(new_args,), result))
+            return Destructor(
+                expr.type,
+                tuple(match_exprs),
+                instantiate(
+                    expr.result_type,
+                    arg_name,
+                    arg_expression
+                )
+            )
         case _:
             raise NotImplementedError
 

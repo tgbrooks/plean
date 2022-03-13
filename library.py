@@ -40,6 +40,35 @@ nat_twist = Destructor(
     Nat
 )
 
+# Hack to define a + b recursively
+# Our frozen datastructures cannot have self-reference
+# So we instead make a lambda function and apply it to itself, so
+# add_precursor(add_precursor) = add
+nat_add_precursor = Lambda(
+    Token('f'),
+    Pi(Token('x'), Nat, Nat),
+    Lambda(
+        Token('a'),
+        Nat,
+        Destructor(
+            Nat,
+            ((tuple(), Variable(Nat, Token('a'))),
+            ((Token('b'),),
+                Apply(
+                    Apply(
+                        Variable(Pi(Token('x'), Nat, Nat), Token('f')),
+                        Constructor(nat_succ, (Variable(Nat, Token('a')),)),
+                    ),
+                    Variable(Nat, Token('b'))
+                )
+            )
+            ),
+            Nat,
+        )
+    )
+)
+nat_add = Apply(nat_add_precursor, nat_add_precursor)
+
 nat_greater = Variable(
     Pi(
         Token('n'),
