@@ -148,6 +148,10 @@ def free_vars(expr: Expression):
         elif isinstance(expr, Constructor):
             for arg in expr.args:
                 free_vars_(arg, bound_vars)
+        elif isinstance(expr, Destructor):
+            free_vars_(expr.result_type, bound_vars)
+            for (args, result) in expr.match_exprs:
+                free_vars_(result, bound_vars.union(args))
         # ConstructedType has no free vars
         else:
             pass
@@ -261,7 +265,7 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                 )
             )
         case _:
-            raise NotImplementedError
+            raise NotImplementedError(f"Unknown how to instantiate {expr}")
 
 @functools.cache
 def whnf(t: Expression) -> Expression:
@@ -308,7 +312,7 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
             # First check if eta-conversion is possible
             #TODO: eta-conversion may need to be done elsewhere
             #      or to otherwise handle the case where (lambda x: f y) has
-            #      y def-eq to x but exactly equal to x
+            #      y def-eq to x but not exactly equal to x
             if (t.body.arg_expression.name == t.arg_name and
                     is_def_eq(t.body.func_expression, s)):
                     return True
@@ -360,6 +364,35 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
         )
     elif isinstance(t, Apply) and isinstance(s, Apply):
         return is_def_eq(t.func_expression, s.func_expression) and is_def_eq(t.arg_expression, s.arg_expression)
+
+    # Types don't match:
+    if isinstance(t, Apply):
+        if isinstance(t.func_expression, Destructor):
+            # Perform iota reduction - evaluate destructor on a constructor
+            destructor = t.func_expression
+            whnf_arg = whnf(t.arg_expression) #WHNF of destructor arg should be a constructor
+            if isinstance(whnf_arg, Constructor):
+                if (whnf_arg.template.constructed_type != destructor.type):
+                    raise PleanException(f"Inferred type of {pretty_print(t.arg_expression)} must be {pretty_print(destructor.type)}.\nInstead was {whnf_arg.template.constructed_type}")
+                template_idx = destructor.type.constructors.index(whnf_arg.template)
+                match_arg_tokens, match_body = destructor.match_exprs[template_idx]
+                # TODO: for now we only support one-argument destructors/constructors
+                if len(match_arg_tokens) == 0:
+                    new_t = match_body
+                elif len(match_arg_tokens) == 1:
+                    new_t = instantiate(
+                        match_body,
+                        match_arg_tokens[0],
+                        t.arg_expression,
+                    )
+                else:
+                    raise NotImplementedError(f"Only support constructors with one argument: {destructor.type} constructor number {template_idx}")
+                return is_def_eq(new_t, s)
+            else:
+                raise NotImplementedError(f"Expected Constructor, received {pretty_print(whnf_arg)}")
+    elif isinstance(s, Apply):
+        # Swap t and s
+        return is_def_eq(s, t)
 
     #TODO: does eta expansion need to be moved to the last thing?
     # and why does the Lean code appear to do eta expansion only if

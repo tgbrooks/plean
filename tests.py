@@ -180,5 +180,10 @@ def test_nat():
     )
     assert infer_type(Apply(nat_twist, nat_one)) == Nat
 
+    assert is_def_eq(Apply(nat_twist, nat_zero), nat_one)
+    assert is_def_eq(Apply(nat_twist, nat_one), nat_zero)
+    assert is_def_eq(nat_one, Apply(nat_twist, nat_zero))
+    assert is_def_eq(nat_zero, Apply(nat_twist, nat_one))
+
     #assert is_def_eq(Apply(Apply(nat_add, nat_one), nat_zero), nat_one)
     assert infer_type(Apply(Apply(nat_add, nat_one), nat_zero)) == Nat

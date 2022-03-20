@@ -30,6 +30,7 @@ nat_succ = Nat.constructors[1]
 nat_one = Constructor(nat_succ, args=(nat_zero,))
 
 
+# Basic destructor for testing purposes
 # Sends 0 -> 1 and all others to zero
 nat_twist = Destructor(
     Nat,
