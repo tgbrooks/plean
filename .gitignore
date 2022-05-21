@@ -1,3 +1,7 @@
 *.pyc
 *.pyd
 *.pyo
+
+.pytest_cache
+.vscode
+__pycache__
