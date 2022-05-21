@@ -8,15 +8,17 @@ Type = Sort(1)
 
 Nat = ConstructedType(
     (
-        (
+        ConstructorTemplate(
             Token("Zero"),
             tuple(),
             tuple(),
+            Constant(Token("Nat")),
         ),
-        (
+        ConstructorTemplate(
             Token("Succ"),
             (Token("n"),),
-            (None,),
+            (Constant(Token('Nat')),),
+            Constant(Token("Nat")),
         ),
     ),
     type = Type,
@@ -28,6 +30,7 @@ nat_zero = Constructor(
 )
 nat_succ = Nat.constructors[1]
 nat_one = Constructor(nat_succ, args=(nat_zero,))
+constants['Nat'] = Nat
 
 
 # Basic destructor for testing purposes
@@ -68,6 +71,7 @@ nat_add_precursor = Lambda(
         )
     )
 )
+
 nat_add = Apply(nat_add_precursor, nat_add_precursor)
 
 nat_greater = Variable(

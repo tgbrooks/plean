@@ -28,6 +28,10 @@ class Variable:
     name: Token
 
 @dataclass(frozen=True)
+class Constant:
+    name: Token
+
+@dataclass(frozen=True)
 class Pi:
     arg_name: Token
     arg_type: 'Expression'
@@ -54,29 +58,13 @@ class ConstructorTemplate:
     name: Token
     arg_names: tuple[Token, ...]
     arg_types: tuple['Expression', ...]
-    constructed_type: 'ConstructedType'
+    constructed_type: Constant
 
 @dataclass(frozen=True)
 class ConstructedType:
-    constructor_info: tuple[
-        tuple[Token, tuple[Token, ...], tuple[Union['Expression', None], ...]],
-        ...
-    ]
+    constructors: tuple[ConstructorTemplate, ...]
     type: Sort
     name: Token
-    @property
-    def constructors(self) -> tuple[ConstructorTemplate,...]:
-        templates = tuple(ConstructorTemplate(
-            name,
-            arg_names,
-            # None indicates that this is a self-reference and we
-            # replace that with this type
-            tuple(expr if isinstance(expr, Expression) else self
-                for expr in arg_types),
-            self
-        ) for name, arg_names, arg_types in self.constructor_info)
-        return templates
-
 
 @dataclass(frozen=True)
 class Constructor:
@@ -96,6 +84,7 @@ class Destructor:
 
 Expression = Union[
     Variable,
+    Constant,
     Sort,
     Pi,
     Apply,
@@ -105,10 +94,15 @@ Expression = Union[
     Destructor,
 ]
 
+# Global environment
+constants : dict[str, Expression] = {}
+
 def pretty_print(expr: Expression) -> str:
     def pp(t: Expression) -> str:
         if isinstance(t, Variable):
             return f"{t.name.val}:{pp(t.type)}"
+        elif isinstance(t, Constant):
+            return f"{t.name}"
         elif isinstance(t, Sort):
             return f"Sort({t.universe})"
         elif isinstance(t, Pi):
@@ -154,6 +148,7 @@ def free_vars(expr: Expression):
                 free_vars_(result, bound_vars.union(args))
         # ConstructedType has no free vars
         else:
+            # TODO: can constants have free vars?
             pass
     free_vars_(expr, set())
     return free_var_list
@@ -181,6 +176,8 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                 # TODO: assert type match?
                 return arg_expression
             return expr
+        case Constant(name):
+            return constants[name.val]
         case Sort(_):
             return expr
         case Pi(pi_arg_name, pi_arg_type, pi_body):
@@ -273,6 +270,8 @@ def whnf(t: Expression) -> Expression:
         # Trivial cases:
         case Variable(type, name):
             return t
+        case Constant(name):
+            return whnf(constants[name.val])
         case Sort(universe):
             return t
         case Pi(arg_name, arg_type, result_type):
@@ -303,6 +302,12 @@ def whnf(t: Expression) -> Expression:
             raise NotImplementedError
             
 def is_def_eq(t: Expression, s: Expression) -> bool:
+    # Populate constnats
+    if isinstance(t, Constant):
+        t = constants[t.name.val]
+    if isinstance(s, Constant):
+        s = constants[s.name.val]
+
     if isinstance(t, Sort) and isinstance(s, Sort):
         return t.universe == s.universe
     elif isinstance(t, Variable) and isinstance(s, Variable):
@@ -372,7 +377,7 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
             destructor = t.func_expression
             whnf_arg = whnf(t.arg_expression) #WHNF of destructor arg should be a constructor
             if isinstance(whnf_arg, Constructor):
-                if (whnf_arg.template.constructed_type != destructor.type):
+                if (whnf_arg.template.constructed_type.name != destructor.type.name):
                     raise PleanException(f"Inferred type of {pretty_print(t.arg_expression)} must be {pretty_print(destructor.type)}.\nInstead was {whnf_arg.template.constructed_type}")
                 template_idx = destructor.type.constructors.index(whnf_arg.template)
                 match_arg_tokens, match_body = destructor.match_exprs[template_idx]
@@ -404,6 +409,8 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
 def infer_type(expr: Expression) -> Expression:
     if isinstance(expr, Variable):
         return expr.type
+    elif isinstance(expr, Constant):
+        return infer_type(constants[expr.name.val])
     elif isinstance(expr, Sort):
         return Sort(expr.universe + 1)
     elif isinstance(expr, Pi):
