@@ -2,7 +2,6 @@ import io
 from dataclasses import dataclass, field
 from typing import Union
 from typing import overload
-import functools
 
 class PleanException(Exception):
     pass
@@ -37,11 +36,6 @@ class Pi:
     arg_type: 'Expression'
     result_type: 'Expression'
 
-    #def __post_init__(self):
-    #    res_type = substitute(self.arg_name, self.arg_type, self.result_type_expr)
-    #    if res_type != self.result_type:
-    #        raise ExpressionError(f"Result type expression passed to Pi has type\n{res_type}\nbut expected to have\n{self.result_type}")
-
 @dataclass(frozen=True)
 class Apply:
     func_expression: 'Expression'
@@ -73,7 +67,7 @@ class Constructor:
 
 @dataclass(frozen=True)
 class Destructor:
-    type: ConstructedType 
+    type: ConstructedType
     # match_exprs are ( ((a,b,c), expr), ((x,y), expr), ...)
     # to match constructors like ( (cons1 a b c), (cons2 x y), ...)
     match_exprs: tuple[
@@ -124,7 +118,6 @@ def pretty_print(expr: Expression) -> str:
             raise NotImplementedError
     return pp(expr)
 
-@functools.cache
 def free_vars(expr: Expression):
     ''' Return list of unbound variables in the expression '''
     free_var_list: set[Token] = set()
@@ -153,21 +146,20 @@ def free_vars(expr: Expression):
     free_vars_(expr, set())
     return free_var_list
 
-@overload
-def instantiate(expr: Variable, arg_name: Token, arg_expression: Expression) -> Variable: ...
-@overload
-def instantiate(expr: Sort, arg_name: Token, arg_expression: Expression) -> Sort: ...
-@overload
-def instantiate(expr: Pi, arg_name: Token, arg_expression: Expression) -> Pi: ...
-@overload
-def instantiate(expr: Lambda, arg_name: Token, arg_expression: Expression) -> Lambda: ...
-@overload
-def instantiate(expr: Apply, arg_name: Token, arg_expression: Expression) -> Apply: ...
-@overload
-def instantiate(expr: Constructor, arg_name: Token, arg_expression: Expression) -> Constructor: ...
-@overload
-def instantiate(expr: ConstructedType, arg_name: Token, arg_expression: Expression) -> ConstructedType: ...
-@functools.cache
+#@overload
+#def instantiate(expr: Variable, arg_name: Token, arg_expression: Expression) -> Variable: ...
+#@overload
+#def instantiate(expr: Sort, arg_name: Token, arg_expression: Expression) -> Sort: ...
+#@overload
+#def instantiate(expr: Pi, arg_name: Token, arg_expression: Expression) -> Pi: ...
+#@overload
+#def instantiate(expr: Lambda, arg_name: Token, arg_expression: Expression) -> Lambda: ...
+#@overload
+#def instantiate(expr: Apply, arg_name: Token, arg_expression: Expression) -> Apply: ...
+#@overload
+#def instantiate(expr: Constructor, arg_name: Token, arg_expression: Expression) -> Constructor: ...
+#@overload
+#def instantiate(expr: ConstructedType, arg_name: Token, arg_expression: Expression) -> ConstructedType: ...
 def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -> Expression:
     ''' Replace a free variable in an expression with an expression '''
     match expr:
@@ -264,7 +256,6 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
         case _:
             raise NotImplementedError(f"Unknown how to instantiate {expr}")
 
-@functools.cache
 def whnf(t: Expression) -> Expression:
     match t:
         # Trivial cases:
@@ -300,7 +291,7 @@ def whnf(t: Expression) -> Expression:
                 raise NotImplementedError
         case _:
             raise NotImplementedError
-            
+
 def is_def_eq(t: Expression, s: Expression) -> bool:
     # Populate constnats
     if isinstance(t, Constant):
