@@ -368,7 +368,8 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
             )
         )
     elif isinstance(t, Apply) and isinstance(s, Apply):
-        return is_def_eq(t.func_expression, s.func_expression) and is_def_eq(t.arg_expression, s.arg_expression)
+        if is_def_eq(t.func_expression, s.func_expression) and is_def_eq(t.arg_expression, s.arg_expression):
+            return True
 
     # Types don't match:
     if isinstance(t, Apply):
@@ -395,6 +396,16 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
                 return is_def_eq(new_t, s)
             else:
                 raise NotImplementedError(f"Expected Constructor, received {pretty_print(whnf_arg)}")
+        elif isinstance(t.func_expression, Lambda):
+            # Beta reduction: evaluate the argument into the function
+            return is_def_eq(
+                instantiate(
+                    t.func_expression.body,
+                    t.func_expression.arg_name,
+                    t.arg_expression,
+                ),
+                s
+            )
     elif isinstance(s, Apply):
         # Swap t and s
         return is_def_eq(s, t)
