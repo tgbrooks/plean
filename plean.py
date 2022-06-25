@@ -1,3 +1,4 @@
+from calendar import c
 import io
 from dataclasses import dataclass, field
 from typing import Union
@@ -78,6 +79,8 @@ class ConstructedType:
     constructors: tuple[ConstructorTemplate, ...]
     type: Sort
     name: Token
+    def __repr__(self):
+        return repr(self.name)
 
 @dataclass(frozen=True)
 class Constructor:
@@ -85,15 +88,21 @@ class Constructor:
     args: tuple['Expression',...]
 
 @dataclass(frozen=True)
-class Destructor:
+class Recursor:
     type: ConstructedType
-    # match_exprs are ( ((a,b,c), expr), ((x,y), expr), ...)
-    # to match constructors like ( (cons1 a b c), (cons2 x y), ...)
-    match_exprs: tuple[
-        tuple[tuple[Token,...], 'Expression'],...
-    ]
     result_type: 'Expression'
-
+    match_cases: tuple['Expression', ...]
+    def __post_init__(self):
+        # Verify types match
+        assert len(self.match_cases) == len(self.type.constructors), f"Recursor has {len(self.match_cases)} cases but {self.type} needs {len(self.type.constructors)}"
+        for constructor, case in zip(self.type.constructors, self.match_cases):
+            case_type = infer_type(case)
+            for arg_type in constructor.arg_types:
+                assert isinstance(case_type, Pi), f"Recursor for {self.type} expected to have Pi type but had {case_type}"
+                assert is_def_eq(case_type.arg_type, arg_type), f"Recursor for {self.type} expected to have match-case accepting {arg_type} but had type {case_type}"
+                # Select the next step and compare it
+                case_type = case_type.result_type #TODO: substitute free variables into this?
+            assert is_def_eq(case_type, self.result_type), f"Recursor for {self.type} expected to yield {self.result_type} but yields {case_type} instead"
 
 Expression = Union[
     Variable,
@@ -104,7 +113,7 @@ Expression = Union[
     Lambda,
     Constructor,
     ConstructedType,
-    Destructor,
+    Recursor,
 ]
 
 # Global environment
@@ -129,10 +138,8 @@ def pretty_print(expr: Expression) -> str:
             return f"{t.template.name.val} " + " ".join(pp_args)
         elif isinstance(t, ConstructedType):
             return t.name.val
-        elif isinstance(t, Destructor):
-            matches = [cons.name.val + " " + ' '.join(x.val for x in m[0])
-                            for cons, m in zip(t.type.constructors, t.match_exprs)]
-            return "(" + " | ".join(matches) + ")"
+        elif isinstance(t, Recursor):
+            return f"({t.type}.rec" + " ".join(pp(m) for m in t.match_cases) + ")"
         else:
             raise NotImplementedError
     return pp(expr)
@@ -154,11 +161,10 @@ def free_vars(expr: Expression):
         elif isinstance(expr, Constructor):
             for arg in expr.args:
                 free_vars_(arg, bound_vars)
-        elif isinstance(expr, Destructor):
-            free_vars_(expr.result_type, bound_vars)
-            for (args, result) in expr.match_exprs:
-                free_vars_(result, bound_vars.union(args))
-        # ConstructedType has no free vars
+        elif isinstance(expr, Recursor):
+            for case in expr.match_cases:
+                free_vars_(case, bound_vars)
+        # ConstructedType have no free vars
         else:
             # TODO: can constants have free vars?
             pass
@@ -235,42 +241,11 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
             )
         case ConstructedType(_):
             return expr
-        case Destructor(_,_,_):
-            match_exprs = []
-            for (args, result), template in zip(expr.match_exprs, expr.type.constructors):
-                if arg_name in args:
-                    # Variable is now bound, do not instantiate it
-                    # inside of the result expression
-                    match_exprs.append((args, result))
-                    continue
-                free_vars_in_arg = free_vars(arg_expression)
-                new_args = []
-                for arg, arg_type in zip(args, template.arg_types):
-                    # Check for clashes where bound args occur in the
-                    # expression being substituted in and avoid those
-                    if arg in free_vars_in_arg:
-                        # Rename destructor arg to avoid clash with free var
-                        new_arg_name = Token(arg_name.val + "`")
-                        new_bound_var = Variable(arg_type, new_arg_name)
-                        result = instantiate(
-                            result,
-                            arg_name,
-                            new_bound_var,
-                        )
-                        new_args.append(new_arg_name)
-                    else:
-                        new_args.append(arg)
-                # Perform the actual instantiation
-                result = instantiate(result, arg_name, arg_expression)
-                match_exprs.append((tuple(new_args,), result))
-            return Destructor(
+        case Recursor(_,_,_):
+            return Recursor(
                 expr.type,
-                tuple(match_exprs),
-                instantiate(
-                    expr.result_type,
-                    arg_name,
-                    arg_expression
-                )
+                instantiate(expr.result_type, arg_name, arg_expression),
+                tuple(instantiate(case, arg_name, arg_expression) for case in expr.match_cases),
             )
         case _:
             raise NotImplementedError(f"Unknown how to instantiate {expr}")
@@ -297,8 +272,17 @@ def whnf(t: Expression) -> Expression:
             # All others are trivial
             return t
 
+def apply_list(expr: Expression, args: list[Expression]) -> Expression:
+    ''' Given an expression and a list of argument expression, builds
+    a chain of Apply's to apply all of them in order, i.e.,
+    apply_list(expr, [a,b]) = Apply(Apply(expr, a), b)'''
+    if len(args) == 0:
+        return expr
+    else:
+        return apply_list(Apply(expr, args[0]), args[1:])
+
 def is_def_eq(t: Expression, s: Expression) -> bool:
-    # Populate constnats
+    # Populate constants
     if isinstance(t, Constant):
         t = constants[t.name.val]
     if isinstance(s, Constant):
@@ -370,29 +354,21 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
     # Types don't match:
     if isinstance(t, Apply):
         whnf_func = whnf(t.func_expression)
-        if isinstance(whnf_func, Destructor):
-            # Perform iota reduction - evaluate destructor on a constructor
-            destructor = whnf_func
-            whnf_arg = whnf(t.arg_expression) #WHNF of destructor arg should be a constructor
+        if isinstance(whnf_func, Recursor):
+            # Perform iota reduction - evaluate recursor on a constructor
+            recursor = whnf_func
+            whnf_arg = whnf(t.arg_expression) #WHNF of recursor arg should be a constructor
             if isinstance(whnf_arg, Constructor):
-                if (whnf_arg.template.constructed_type.name != destructor.type.name):
-                    raise PleanException(f"Inferred type of {pretty_print(t.arg_expression)} must be {pretty_print(destructor.type)}.\nInstead was {whnf_arg.template.constructed_type}")
-                template_idx = destructor.type.constructors.index(whnf_arg.template)
-                match_arg_tokens, match_body = destructor.match_exprs[template_idx]
-                # TODO: for now we only support one-argument destructors/constructors
-                if len(match_arg_tokens) == 0:
-                    new_t = match_body
-                elif len(match_arg_tokens) == 1:
-                    new_t = instantiate(
-                        match_body,
-                        match_arg_tokens[0],
-                        t.arg_expression,
-                    )
-                else:
-                    raise NotImplementedError(f"Only support constructors with one argument: {destructor.type} constructor number {template_idx}")
-                return is_def_eq(new_t, s)
+                if (whnf_arg.template.constructed_type.name != recursor.type.name):
+                    raise PleanException(f"Inferred type of {t.arg_expression} must be {recursor.type}.\nInstead was {whnf_arg.template.constructed_type}")
+                template_idx = recursor.type.constructors.index(whnf_arg.template)
+                match_case = recursor.match_cases[template_idx]
+                return is_def_eq(
+                    apply_list(match_case, list(whnf_arg.args)),
+                    s
+                )
             else:
-                raise NotImplementedError(f"Expected Constructor, received {pretty_print(whnf_arg)}")
+                raise NotImplementedError(f"Expected Constructor of {recursor.type}, received {whnf_arg}")
         elif isinstance(whnf_func, Lambda):
             # Beta reduction: evaluate the argument into the function
             return is_def_eq(
@@ -463,9 +439,9 @@ def infer_type(expr: Expression) -> Expression:
         return expr.template.constructed_type
     elif isinstance(expr, ConstructedType):
         return expr.type
-    elif isinstance(expr, Destructor):
+    elif isinstance(expr, Recursor):
         return Pi(
-            Token(''), # TODO: unsure, no var here -- can destructors have parametric return types?
+            Token('?'), # TODO: Allow recursors to have dependent return types
             expr.type,
             expr.result_type,
         )

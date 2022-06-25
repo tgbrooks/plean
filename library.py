@@ -35,44 +35,43 @@ constants['Nat'] = Nat
 
 # Basic destructor for testing purposes
 # Sends 0 -> 1 and all others to zero
-nat_twist = Destructor(
+nat_twist = Recursor(
+    Nat,
     Nat,
     (
-        (tuple(), nat_one),
-        ((Token('n'),), nat_zero),
+        nat_one,
+        Lambda(Token('n'), Nat, nat_zero),
     ),
-    Nat
 )
 
-# Hack to define a + b recursively
-# Our frozen datastructures cannot have self-reference
-# So we instead make a lambda function and apply it to itself, so
-# add_precursor(add_precursor) = add
-nat_add_precursor = Lambda(
-    Token('f'),
-    Pi(Token('x'), Nat, Nat),
-    Lambda(
-        Token('a'),
-        Nat,
-        Destructor(
-            Nat,
-            ((tuple(), Variable(Nat, Token('a'))),
-            ((Token('b'),),
-                Apply(
-                    Apply(
-                        Variable(Pi(Token('x'), Nat, Nat), Token('f')),
-                        Constructor(nat_succ, (Variable(Nat, Token('a')),)),
-                    ),
-                    Variable(Nat, Token('b'))
-                )
-            )
-            ),
-            Nat,
-        )
-    )
-)
-
-nat_add = Apply(nat_add_precursor, nat_add_precursor)
+# Addition a + b = a if b is 0 else (a+1) + (b-1)
+#nat_add = Lambda(
+#    Token('a'),
+#    Nat,
+#    Lambda(
+#        Token('b'),
+#        Nat,
+#        Apply(
+#            Destructor(
+#                Nat,
+#                (
+#                    (tuple(), Variable(Nat, Token('a'))),
+#                    ((Token('b'),),
+#                        Apply(
+#                            Apply(
+#                                Constant(Token('nat_add')),
+#                                Constructor(nat_succ, (Variable(Nat, Token('a')),)),
+#                            ),
+#                            Variable(Nat, Token('b'))
+#                    )),
+#                ),
+#                Nat
+#            ),
+#            Variable(Nat, Token('b')),
+#        )
+#    )
+#)
+#constants['nat_add'] = nat_add
 
 nat_greater = Variable(
     Pi(

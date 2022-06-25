@@ -185,7 +185,7 @@ def test_nat():
     )
 
     assert infer_type(nat_twist) == Pi(
-        Token(''),
+        Token('?'),
         nat_twist.type,
         nat_twist.result_type,
     )
