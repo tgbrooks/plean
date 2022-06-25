@@ -258,23 +258,6 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
 
 def whnf(t: Expression) -> Expression:
     match t:
-        # Trivial cases:
-        case Variable(type, name):
-            return t
-        case Constant(name):
-            return whnf(constants[name.val])
-        case Sort(universe):
-            return t
-        case Pi(arg_name, arg_type, result_type):
-            return t
-        case Lambda(arg_name, arg_type, body):
-            return t
-        case Constructor(_, _):
-            return t
-        case ConstructedType(_):
-            return t
-        case Destructor(_):
-            return t
         # Non-trivial
         case Apply(func_expression, arg_expression):
             whnf_func = whnf(func_expression)
@@ -292,7 +275,8 @@ def whnf(t: Expression) -> Expression:
             else:
                 raise NotImplementedError
         case _:
-            raise NotImplementedError
+            # All others are trivial
+            return t
 
 def is_def_eq(t: Expression, s: Expression) -> bool:
     # Populate constnats
