@@ -273,6 +273,8 @@ def whnf(t: Expression) -> Expression:
             return t
         case ConstructedType(_):
             return t
+        case Destructor(_):
+            return t
         # Non-trivial
         case Apply(func_expression, arg_expression):
             whnf_func = whnf(func_expression)
