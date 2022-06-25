@@ -16,36 +16,55 @@ def imax(u,v):
 @dataclass(frozen=True)
 class Token:
     val: str
+    def __repr__(self):
+        return f"`{self.val}"
 
 @dataclass(frozen=True)
 class Sort:
     universe: int
+    def __repr__(self):
+        if self.universe == 0:
+            return "Prop"
+        elif self.universe == 1:
+            return "Type"
+        else:
+            return f"Sort({self.universe})"
 
 @dataclass(frozen=True)
 class Variable:
     type: 'Expression'
     name: Token
+    def __repr__(self):
+        return self.name.val
 
 @dataclass(frozen=True)
 class Constant:
     name: Token
+    def __repr__(self):
+        return self.name.val
 
 @dataclass(frozen=True)
 class Pi:
     arg_name: Token
     arg_type: 'Expression'
     result_type: 'Expression'
+    def __repr__(self):
+        return f"(Π {self.arg_name}:{self.arg_type}, {self.result_type})"
 
 @dataclass(frozen=True)
 class Apply:
     func_expression: 'Expression'
     arg_expression: 'Expression'
+    def __repr__(self):
+        return f"({self.func_expression} {self.arg_expression})"
 
 @dataclass(frozen=True)
 class Lambda:
     arg_name: Token
     arg_type: 'Expression'
     body: 'Expression'
+    def __repr__(self):
+        return f"(λ {self.arg_name.val}:{self.arg_type}, {self.body})"
 
 @dataclass(frozen=True)
 class ConstructorTemplate:
