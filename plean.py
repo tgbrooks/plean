@@ -369,9 +369,10 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
 
     # Types don't match:
     if isinstance(t, Apply):
-        if isinstance(t.func_expression, Destructor):
+        whnf_func = whnf(t.func_expression)
+        if isinstance(whnf_func, Destructor):
             # Perform iota reduction - evaluate destructor on a constructor
-            destructor = t.func_expression
+            destructor = whnf_func
             whnf_arg = whnf(t.arg_expression) #WHNF of destructor arg should be a constructor
             if isinstance(whnf_arg, Constructor):
                 if (whnf_arg.template.constructed_type.name != destructor.type.name):
@@ -392,12 +393,12 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
                 return is_def_eq(new_t, s)
             else:
                 raise NotImplementedError(f"Expected Constructor, received {pretty_print(whnf_arg)}")
-        elif isinstance(t.func_expression, Lambda):
+        elif isinstance(whnf_func, Lambda):
             # Beta reduction: evaluate the argument into the function
             return is_def_eq(
                 instantiate(
-                    t.func_expression.body,
-                    t.func_expression.arg_name,
+                    whnf_func.body,
+                    whnf_func.arg_name,
                     t.arg_expression,
                 ),
                 s
