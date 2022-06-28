@@ -98,6 +98,27 @@ class Constructor:
     args: tuple['Expression',...]
     type_args: tuple['Expression',...]
 
+    def instantiate_type_args(self, expr: 'Expression') -> 'Expression':
+        # Instantiate the type arguments into an expression
+        for (arg_name, arg_type), arg_value in zip(self.type.args, self.type_args):
+            expr = instantiate(
+                expr,
+                arg_name,
+                arg_value,
+            )
+        return expr
+
+    def __post_init__(self):
+        constructor_template = self.type.constructors[self.constructor_index]
+        assert len(self.type_args) == len(self.type.args), f"Expected {len(self.type.args)} type args for constructor of {self.type} but got {len(self.type_args)}"
+        for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
+            assert is_def_eq(infer_type(arg), arg_type), f"Expected type {arg_type} for constructor type arg {arg_name} of {self.type} but got {arg}"
+
+        assert len(self.args) == len(constructor_template.arg_types), f"Expected {len(constructor_template.arg_types)} args for type {self.type} constructor but got {len(self.args)}"
+        for arg, (arg_type) in zip(self.args, constructor_template.arg_types):
+            arg_type = self.instantiate_type_args(arg_type)
+            assert is_def_eq(infer_type(arg), arg_type), f"Expected arg of type {arg_type} in constructor for {self.type} but got {arg}"
+
 @dataclass(frozen=True)
 class Recursor:
     type: InstantiatedConstructedType

@@ -13,7 +13,6 @@ false = ConstructedType(
     type = Prop,
     name = Token("false")
 )
-constants['false'] = InstantiatedConstructedType(false, ())
 
 true = ConstructedType(
     constructors = (
@@ -27,7 +26,6 @@ true = ConstructedType(
     type = Prop,
     name = Token("true")
 )
-constants['true'] = InstantiatedConstructedType(true, ())
 true_intro = Constructor(
     true,
     0,
@@ -47,7 +45,6 @@ And = ConstructedType(
     args = ((Token('alpha'), Prop), (Token('beta'), Prop)),
     type = Prop,
 )
-constants['and'] = And
 
 Nat_type = ConstructedType(
     (
@@ -67,6 +64,7 @@ Nat_type = ConstructedType(
     name = Token('Nat'),
 )
 Nat = InstantiatedConstructedType(Nat_type, ())
+constants['Nat'] = Nat
 nat_zero = Constructor(
     Nat.type,
     0,
@@ -75,7 +73,6 @@ nat_zero = Constructor(
 )
 nat_succ = Nat.type.constructors[1]
 nat_one = Constructor(Nat.type, 1, args=(nat_zero,), type_args=())
-constants['Nat'] = Nat
 
 
 # Basic destructor for testing purposes

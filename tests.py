@@ -199,3 +199,14 @@ def test_nat():
     # TODO??
     #assert is_def_eq(Apply(Apply(nat_add, nat_one), nat_zero), nat_one)
     #assert infer_type(Apply(Apply(nat_add, nat_one), nat_zero)) == Nat
+
+def test_logic():
+    hp, hq = Variable(p, Token("hp")), Variable(q, Token("hq"))
+    And_p_q = InstantiatedConstructedType(And, (p, q))
+    h_And_p_q = Constructor(
+        type = And,
+        constructor_index=0,
+        args = (hp, hq),
+        type_args = (p, q),
+    )
+    assert is_def_eq(infer_type(h_And_p_q), And_p_q)
