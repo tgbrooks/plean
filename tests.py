@@ -167,8 +167,8 @@ def test_infer_type():
     assert infer_type(Pi(Token('p'), Sort(universe=1), Prop)) == Sort(2)
     assert infer_type(Pi(Token('p'), Prop, Sort(universe=1))) == Sort(universe=2)
 
-    assert infer_type(nat_one) == Constant(Token('Nat'))
-    assert infer_type(nat_zero) == Constant(Token('Nat'))
+    assert infer_type(nat_one) == Nat #TODO
+    assert infer_type(nat_zero) == Nat
     assert infer_type(infer_type(nat_greater)) == Sort(1)
 
 def test_nat():

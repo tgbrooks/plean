@@ -77,25 +77,37 @@ class ConstructorTemplate:
 @dataclass(frozen=True)
 class ConstructedType:
     constructors: tuple[ConstructorTemplate, ...]
+    args: tuple[tuple[Token, 'Expression'], ...]
     type: Sort
     name: Token
     def __repr__(self):
         return repr(self.name)
 
 @dataclass(frozen=True)
+class InstantiatedConstructedType:
+    type: ConstructedType
+    type_args: tuple['Expression', ...]
+    def __post_init__(self):
+        for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
+            inferred_type = infer_type(arg)
+            assert is_def_eq(inferred_type, arg_type), f"Expected arg for {self.type.name} of type {arg_type} but got {inferred_type} instead"
+
+@dataclass(frozen=True)
 class Constructor:
-    template: ConstructorTemplate
+    type: ConstructedType
+    constructor_index: int
     args: tuple['Expression',...]
+    type_args: tuple['Expression',...]
 
 @dataclass(frozen=True)
 class Recursor:
-    type: ConstructedType
+    type: InstantiatedConstructedType
     result_type: 'Expression'
     match_cases: tuple['Expression', ...]
     def __post_init__(self):
         # Verify types match
-        assert len(self.match_cases) == len(self.type.constructors), f"Recursor has {len(self.match_cases)} cases but {self.type} needs {len(self.type.constructors)}"
-        for constructor, case in zip(self.type.constructors, self.match_cases):
+        assert len(self.match_cases) == len(self.type.type.constructors), f"Recursor has {len(self.match_cases)} cases but {self.type} needs {len(self.type.type.constructors)}"
+        for constructor, case in zip(self.type.type.constructors, self.match_cases):
             case_type = infer_type(case)
             for arg_type in constructor.arg_types:
                 assert isinstance(case_type, Pi), f"Recursor for {self.type} expected to have Pi type but had {case_type}"
@@ -112,7 +124,7 @@ Expression = Union[
     Apply,
     Lambda,
     Constructor,
-    ConstructedType,
+    InstantiatedConstructedType,
     Recursor,
 ]
 
@@ -135,7 +147,7 @@ def pretty_print(expr: Expression) -> str:
             return f"(λ {t.arg_name.val}:{pp(t.arg_type)}, {pp(t.body)})"
         elif isinstance(t, Constructor):
             pp_args = [pp(arg) for arg in t.args]
-            return f"{t.template.name.val} " + " ".join(pp_args)
+            return f"{t.type.name}{t.type_args} " + " ".join(pp_args)
         elif isinstance(t, ConstructedType):
             return t.name.val
         elif isinstance(t, Recursor):
@@ -159,8 +171,9 @@ def free_vars(expr: Expression):
             free_vars_(expr.arg_expression, bound_vars)
             free_vars_(expr.func_expression, bound_vars)
         elif isinstance(expr, Constructor):
+            type_args = [name for name, expr2 in expr.type.args]
             for arg in expr.args:
-                free_vars_(arg, bound_vars)
+                free_vars_(arg, bound_vars.union(type_args))
         elif isinstance(expr, Recursor):
             for case in expr.match_cases:
                 free_vars_(case, bound_vars)
@@ -235,12 +248,19 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
             )
         case Constructor(_, _):
             return Constructor(
-                expr.template,
+                expr.type,
+                expr.constructor_index,
                 tuple(instantiate(constructor_arg, arg_name, arg_expression)
-                    for constructor_arg in expr.args)
+                    for constructor_arg in expr.args),
+                tuple(instantiate(type_arg, arg_name, arg_expression)
+                    for type_arg in expr.type_args),
             )
-        case ConstructedType(_):
-            return expr
+        case InstantiatedConstructedType(_):
+            return InstantiatedConstructedType(
+                expr.type,
+                tuple(instantiate(type_arg, arg_name, arg_expression)
+                    for type_arg in expr.type_args),
+            )
         case Recursor(_,_,_):
             return Recursor(
                 expr.type,
@@ -323,11 +343,19 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
             )
         )
     elif isinstance(t, Constructor) and isinstance(s, Constructor):
-        return ((t.template == s.template) and
+        return (
+            (t.type == s.type) and
+            t.constructor_index == s.constructor_index and
             len(t.args) == len(s.args) and
-            all(is_def_eq(t_arg, s_arg) for t_arg, s_arg in zip(t.args, s.args)))
-    elif isinstance(t, ConstructedType) and isinstance(s, ConstructedType):
-        return t == s
+            all(is_def_eq(t_arg, s_arg) for t_arg, s_arg in zip(t.args, s.args)) and
+            len(t.type_args) == len(s.type_args) and
+            all(is_def_eq(t_arg, s_arg) for t_arg, s_arg in zip(t.type_args, s.type_args))
+        )
+    elif isinstance(t, InstantiatedConstructedType) and isinstance(s, InstantiatedConstructedType):
+        return (
+            t.type == s.type and
+            all(is_def_eq(t_arg, s_arg) for t_arg, s_arg in zip(t.type_args, s.type_args))
+        )
     elif isinstance(t, Pi) and isinstance(s, Pi):
         # NOTE: no eta-conversion done for Pi-types
         # this surpirses me but agrees with references (Carneiro, 2019)
@@ -359,10 +387,9 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
             recursor = whnf_func
             whnf_arg = whnf(t.arg_expression) #WHNF of recursor arg should be a constructor
             if isinstance(whnf_arg, Constructor):
-                if (whnf_arg.template.constructed_type.name != recursor.type.name):
-                    raise PleanException(f"Inferred type of {t.arg_expression} must be {recursor.type}.\nInstead was {whnf_arg.template.constructed_type}")
-                template_idx = recursor.type.constructors.index(whnf_arg.template)
-                match_case = recursor.match_cases[template_idx]
+                if (whnf_arg.type.name != recursor.type.type.name):
+                    raise PleanException(f"Inferred type of {t.arg_expression} must be {recursor.type}.\nInstead was {whnf_arg.type}")
+                match_case = recursor.match_cases[whnf_arg.constructor_index]
                 return is_def_eq(
                     apply_list(match_case, list(whnf_arg.args)),
                     s
@@ -436,9 +463,12 @@ def infer_type(expr: Expression) -> Expression:
             ))
         )
     elif isinstance(expr, Constructor):
-        return expr.template.constructed_type
-    elif isinstance(expr, ConstructedType):
-        return expr.type
+        return InstantiatedConstructedType(
+            expr.type,
+            expr.type_args,
+        )
+    elif isinstance(expr, InstantiatedConstructedType):
+        return expr.type.type
     elif isinstance(expr, Recursor):
         return Pi(
             Token('?'), # TODO: Allow recursors to have dependent return types

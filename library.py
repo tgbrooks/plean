@@ -6,7 +6,52 @@ from plean import *
 Prop = Sort(0)
 Type = Sort(1)
 
-Nat = ConstructedType(
+
+false = ConstructedType(
+    constructors = (),
+    args =  (),
+    type = Prop,
+    name = Token("false")
+)
+constants['false'] = InstantiatedConstructedType(false, ())
+
+true = ConstructedType(
+    constructors = (
+        ConstructorTemplate(
+            Token("intro"),
+            tuple(),
+            tuple(),
+            Constant(Token("true")),
+        ),
+    ),
+    args = (),
+    type = Prop,
+    name = Token("true")
+)
+constants['true'] = InstantiatedConstructedType(true, ())
+true_intro = Constructor(
+    true,
+    0,
+    tuple(),
+    type_args = (),
+)
+
+And = ConstructedType(
+    constructors = (
+        ConstructorTemplate(
+            Token("intro"),
+            (Token('a'), Token('b')),
+            (Variable(Prop, Token('alpha')), Variable(Prop, Token('beta')),),
+            Constant(Token('and')),
+        ),
+    ),
+    name = Token("and"),
+    args = ((Token('alpha'), Prop), (Token('beta'), Prop)),
+    type = Prop,
+)
+constants['and'] = And
+
+Nat_type = ConstructedType(
     (
         ConstructorTemplate(
             Token("Zero"),
@@ -21,15 +66,19 @@ Nat = ConstructedType(
             Constant(Token("Nat")),
         ),
     ),
+    args = (),
     type = Type,
     name = Token('Nat'),
 )
+Nat = InstantiatedConstructedType(Nat_type, ())
 nat_zero = Constructor(
-    template=Nat.constructors[0],
-    args  = tuple(),
+    Nat.type,
+    0,
+    args  = (),
+    type_args = (),
 )
-nat_succ = Nat.constructors[1]
-nat_one = Constructor(nat_succ, args=(nat_zero,))
+nat_succ = Nat.type.constructors[1]
+nat_one = Constructor(Nat.type, 1, args=(nat_zero,), type_args=())
 constants['Nat'] = Nat
 
 
@@ -94,8 +143,10 @@ nat_succ_greater_zero = Variable(
             Apply(
                 nat_greater,
                 Constructor(
-                    nat_succ,
-                    (Variable(Nat, Token('n')),)
+                    Nat.type,
+                    1,
+                    args = (Variable(Nat, Token('n')),),
+                    type_args = (),
                 ),
             ),
             nat_zero,
