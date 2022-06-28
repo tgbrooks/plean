@@ -72,7 +72,6 @@ class ConstructorTemplate:
     name: Token
     arg_names: tuple[Token, ...]
     arg_types: tuple['Expression', ...]
-    constructed_type: Constant
 
 @dataclass(frozen=True)
 class ConstructedType:
