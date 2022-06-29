@@ -1,8 +1,5 @@
-from calendar import c
-import io
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Union
-from typing import overload
 
 class PleanException(Exception):
     pass
@@ -101,16 +98,6 @@ class Constructor:
     args: tuple['Expression',...]
     type_args: tuple['Expression',...]
 
-    def instantiate_type_args(self, expr: 'Expression') -> 'Expression':
-        # Instantiate the type arguments into an expression
-        for (arg_name, arg_type), arg_value in zip(self.type.args, self.type_args):
-            expr = instantiate(
-                expr,
-                arg_name,
-                arg_value,
-            )
-        return expr
-
     def __post_init__(self):
         constructor_template = self.type.constructors[self.constructor_index]
         assert len(self.type_args) == len(self.type.args), f"Expected {len(self.type.args)} type args for constructor of {self.type} but got {len(self.type_args)}"
@@ -119,7 +106,7 @@ class Constructor:
 
         assert len(self.args) == len(constructor_template.arg_types), f"Expected {len(constructor_template.arg_types)} args for type {self.type} constructor but got {len(self.args)}"
         for arg, (arg_type) in zip(self.args, constructor_template.arg_types):
-            arg_type = self.instantiate_type_args(arg_type)
+            arg_type = instantiate_type_args(self.type.args, self.type_args, arg_type)
             assert is_def_eq(infer_type(arg), arg_type), f"Expected arg of type {arg_type} in constructor for {self.type} but got {arg}"
 
 @dataclass(frozen=True)
@@ -133,6 +120,7 @@ class Recursor:
         for constructor, case in zip(self.type.type.constructors, self.match_cases):
             case_type = infer_type(case)
             for arg_type in constructor.arg_types:
+                arg_type = instantiate_type_args(self.type.type.args, self.type.type_args, arg_type)
                 assert isinstance(case_type, Pi), f"Recursor for {self.type} expected to have Pi type but had {case_type}"
                 assert is_def_eq(case_type.arg_type, arg_type), f"Recursor for {self.type} expected to have match-case accepting {arg_type} but had type {case_type}"
                 # Select the next step and compare it
@@ -201,6 +189,7 @@ def free_vars(expr: Expression):
             for case in expr.match_cases:
                 free_vars_(case, bound_vars)
         # ConstructedType have no free vars
+        #TODO: InstantiatedConstructedType args in type_args? And so in Recursor/Constructor too?
         else:
             # TODO: can constants have free vars?
             pass
@@ -286,12 +275,23 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
             )
         case Recursor(_,_,_):
             return Recursor(
-                expr.type,
-                instantiate(expr.result_type, arg_name, arg_expression),
-                tuple(instantiate(case, arg_name, arg_expression) for case in expr.match_cases),
+                type = expr.type,
+                result_type = instantiate(expr.result_type, arg_name, arg_expression),
+                match_cases = tuple(instantiate(case, arg_name, arg_expression) for case in expr.match_cases),
             )
         case _:
             raise NotImplementedError(f"Unknown how to instantiate {expr}")
+
+def instantiate_type_args(arg_spec: tuple[tuple[Token, 'Expression'],...], arg_values: tuple['Expression',...], expr: 'Expression') -> 'Expression':
+    # Instantiate the type arguments into an expression
+    for (arg_name, arg_type), arg_value in zip(arg_spec, arg_values):
+        expr = instantiate(
+            expr,
+            arg_name,
+            arg_value,
+        )
+    return expr
+
 
 def whnf(t: Expression) -> Expression:
     match t:

@@ -209,4 +209,36 @@ def test_logic():
         args = (hp, hq),
         type_args = (p, q),
     )
+    h_And_p_p = Constructor(
+        type = And,
+        constructor_index=0,
+        args = (hp, hp),
+        type_args = (p,p),
+    )
     assert is_def_eq(infer_type(h_And_p_q), And_p_q)
+    assert not is_def_eq(infer_type(h_And_p_p), And_p_q)
+
+    assert is_def_eq(h_And_p_q, and_intro(hp, hq))
+    assert is_def_eq(infer_type(and_outro_left(h_And_p_q)), p)
+    assert is_def_eq(infer_type(and_outro_right(h_And_p_q)), q)
+
+    Or_p_q = InstantiatedConstructedType(Or, (p,q))
+    h_Or_p_q1 = Constructor(
+        type = Or,
+        constructor_index = 0,
+        args = (hp,),
+        type_args = (p,q),
+    )
+    h_Or_p_q2 = Constructor(
+        type = Or,
+        constructor_index = 1,
+        args = (hq,),
+        type_args = (p,q),
+    )
+
+    assert is_def_eq(infer_type(h_Or_p_q1), Or_p_q)
+    assert is_def_eq(infer_type(h_Or_p_q2), Or_p_q)
+    assert is_def_eq(infer_type(h_Or_p_q2), infer_type(h_Or_p_q2))
+
+    # TODO: this depends upon proof irrelevance
+    #assert is_def_eq(h_Or_p_q1, h_Or_p_q2)

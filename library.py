@@ -45,6 +45,59 @@ And = ConstructedType(
     args = ((Token('alpha'), Prop), (Token('beta'), Prop)),
     type = Prop,
 )
+def and_intro(hp, hq):
+    p = infer_type(hp)
+    q = infer_type(hq)
+    return Constructor(
+        type = And,
+        constructor_index=0,
+        args = (hp, hq),
+        type_args = (p, q),
+    )
+def and_outro(and_p_q, side):
+    p,q = and_p_q.type_args
+    type_ = infer_type(and_p_q)
+    assert isinstance(type_, InstantiatedConstructedType)
+    return Apply(
+        Recursor(
+            type = type_,
+            result_type = p if side == "left" else q,
+            match_cases = (
+                Lambda(
+                    arg_name = Token('hp'),
+                    arg_type = p,
+                    body = Lambda(
+                        arg_name = Token('hq'),
+                        arg_type = q,
+                        body = Variable(p, Token("hp")) if side == "left" else Variable(q, Token("hq")),
+                    )
+                ),
+            ),
+        ), 
+        and_p_q,
+    )
+def and_outro_left(and_p_q):
+    return and_outro(and_p_q, "left")
+def and_outro_right(and_p_q):
+    return and_outro(and_p_q, "right")
+
+Or = ConstructedType(
+    constructors = (
+        ConstructorTemplate(
+            Token('intro_l'),
+            (Token('a'),),
+            (Variable(Prop, Token('alpha')),),
+        ),
+        ConstructorTemplate(
+            Token('intro_r'),
+            (Token('b'),),
+            (Variable(Prop, Token('beta')),),
+        ),
+    ),
+    name = Token("or"),
+    args = ((Token('alpha'), Prop), (Token('beta'), Prop)),
+    type = Prop,
+)
 
 Nat_type = ConstructedType(
     (
