@@ -90,6 +90,9 @@ class InstantiatedConstructedType:
         for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
             inferred_type = infer_type(arg)
             assert is_def_eq(inferred_type, arg_type), f"Expected arg for {self.type.name} of type {arg_type} but got {inferred_type} instead"
+    def __repr__(self):
+        args = ','.join(repr(x) for x in self.type_args) 
+        return f"{self.type.name.val}({args})"
 
 @dataclass(frozen=True)
 class Constructor:
