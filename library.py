@@ -98,6 +98,35 @@ Or = ConstructedType(
     args = ((Token('alpha'), Prop), (Token('beta'), Prop)),
     type = Prop,
 )
+def or_intro_left(p, q, hp):
+    return Constructor(
+        type = Or,
+        constructor_index = 0,
+        args = (hp,),
+        type_args = (p, q),
+    )
+def or_intro_right(p, q, hq):
+    return Constructor(
+        type = Or,
+        constructor_index = 1,
+        args = (hq,),
+        type_args = (p, q),
+    )
+def or_outro(or_p_q, r, p_then_r, q_then_r):
+    or_p_q_type = infer_type(or_p_q)
+    assert isinstance(or_p_q_type, InstantiatedConstructedType), f"Expected {or_p_q} to be instantiation of Or"
+    p,q = or_p_q_type.type_args
+    return Apply(
+        Recursor(
+            type = or_p_q_type,
+            result_type = r,
+            match_cases = (
+                p_then_r,
+                q_then_r,
+            ),
+        ),
+        or_p_q,
+    )
 
 Nat_type = ConstructedType(
     (

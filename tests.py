@@ -202,6 +202,7 @@ def test_nat():
 
 def test_logic():
     hp, hq = Variable(p, Token("hp")), Variable(q, Token("hq"))
+    hr = Variable(r, Token("hr"))
     And_p_q = InstantiatedConstructedType(And, (p, q))
     h_And_p_q = Constructor(
         type = And,
@@ -242,3 +243,14 @@ def test_logic():
 
     # TODO: this depends upon proof irrelevance
     #assert is_def_eq(h_Or_p_q1, h_Or_p_q2)
+
+    h_or_p_q1 = or_intro_left(p, q, hp)
+    h_or_p_q2 = or_intro_right(p, q, hq)
+    assert is_def_eq(or_outro(
+            h_or_p_q1,
+            r,
+            Lambda(Token('hp'), p, hr),
+            Lambda(Token('hq'), q, hr),
+        ),
+        hr
+    )
