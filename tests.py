@@ -285,3 +285,59 @@ def test_logic():
         infer_type(apply_list(and_p_q_implies_or_p_q, [p, q, and_intro(hp, hq)]),),
         InstantiatedConstructedType(Or, (p,q)),
     )
+
+def test_fails():
+    with pytest.raises(AssertionError):
+        # Try to prove a bogus theorem
+        or_p_q_implies_and_p_q = Lambda(
+            Token('p'),
+            Prop,
+            Lambda(
+                Token('q'),
+                Prop,
+                Lambda(
+                    Token("h_or_p_q"),
+                    InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                    and_intro(
+                        or_outro(
+                            Variable(
+                                InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                                Token('h_and_p_q')
+                            ),
+                            Variable(Prop, Token('p')),
+                            Variable(Prop, Token('q')),
+                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                            Lambda(
+                                Token('hp'),
+                                Variable(Prop, Token('p')),
+                                Variable(Variable(Prop, Token('p')), Token('hp'))
+                            ),
+                            Lambda(
+                                Token('hq'),
+                                Variable(Prop, Token('q')),
+                                Variable(Variable(Prop, Token('q')), Token('hq'))
+                            ),
+                        ),
+                        or_outro(
+                            Variable(
+                                InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                                Token('h_and_p_q')
+                            ),
+                            Variable(Prop, Token('p')),
+                            Variable(Prop, Token('q')),
+                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                            Lambda(
+                                Token('hp'),
+                                Variable(Prop, Token('p')),
+                                Variable(Variable(Prop, Token('p')), Token('hp'))
+                            ),
+                            Lambda(
+                                Token('hq'),
+                                Variable(Prop, Token('q')),
+                                Variable(Variable(Prop, Token('q')), Token('hq'))
+                            ),
+                        ),
+                    )
+                )
+            )
+        )
