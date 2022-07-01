@@ -54,8 +54,7 @@ def and_intro(hp, hq):
         args = (hp, hq),
         type_args = (p, q),
     )
-def and_outro(and_p_q, side):
-    p,q = and_p_q.type_args
+def and_outro(and_p_q, p, q, side):
     type_ = infer_type(and_p_q)
     assert isinstance(type_, InstantiatedConstructedType)
     return Apply(
@@ -76,10 +75,10 @@ def and_outro(and_p_q, side):
         ), 
         and_p_q,
     )
-def and_outro_left(and_p_q):
-    return and_outro(and_p_q, "left")
-def and_outro_right(and_p_q):
-    return and_outro(and_p_q, "right")
+def and_outro_left(and_p_q, p, q):
+    return and_outro(and_p_q, p, q, "left")
+def and_outro_right(and_p_q, p, q):
+    return and_outro(and_p_q, p, q, "right")
 
 Or = ConstructedType(
     constructors = (
@@ -112,10 +111,9 @@ def or_intro_right(p, q, hq):
         args = (hq,),
         type_args = (p, q),
     )
-def or_outro(or_p_q, r, p_then_r, q_then_r):
+def or_outro(or_p_q, p, q, r, p_then_r, q_then_r):
     or_p_q_type = infer_type(or_p_q)
     assert isinstance(or_p_q_type, InstantiatedConstructedType), f"Expected {or_p_q} to be instantiation of Or"
-    p,q = or_p_q_type.type_args
     return Apply(
         Recursor(
             type = or_p_q_type,

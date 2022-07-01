@@ -220,8 +220,8 @@ def test_logic():
     assert not is_def_eq(infer_type(h_And_p_p), And_p_q)
 
     assert is_def_eq(h_And_p_q, and_intro(hp, hq))
-    assert is_def_eq(infer_type(and_outro_left(h_And_p_q)), p)
-    assert is_def_eq(infer_type(and_outro_right(h_And_p_q)), q)
+    assert is_def_eq(infer_type(and_outro_left(h_And_p_q, p, q)), p)
+    assert is_def_eq(infer_type(and_outro_right(h_And_p_q, p, q)), q)
 
     Or_p_q = InstantiatedConstructedType(Or, (p,q))
     h_Or_p_q1 = Constructor(
@@ -248,9 +248,40 @@ def test_logic():
     h_or_p_q2 = or_intro_right(p, q, hq)
     assert is_def_eq(or_outro(
             h_or_p_q1,
+            p,
+            q,
             r,
             Lambda(Token('hp'), p, hr),
             Lambda(Token('hq'), q, hr),
         ),
         hr
+    )
+
+    and_p_q_implies_or_p_q = Lambda(
+        Token('p'),
+        Prop,
+        Lambda(
+            Token('q'),
+            Prop,
+            Lambda(
+                Token("h_and_p_q"),
+                InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                or_intro_left(
+                    Variable(Prop, Token('p')),
+                    Variable(Prop, Token('q')),
+                    and_outro_left(
+                        Variable(
+                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                            Token('h_and_p_q')
+                        ),
+                        Variable(Prop, Token('p')),
+                        Variable(Prop, Token('q')),
+                    )
+                )
+            )
+        )
+    )
+    assert is_def_eq(
+        infer_type(apply_list(and_p_q_implies_or_p_q, [p, q, and_intro(hp, hq)]),),
+        InstantiatedConstructedType(Or, (p,q)),
     )
