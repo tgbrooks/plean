@@ -366,6 +366,11 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
             )
         )
     elif isinstance(t, Constructor) and isinstance(s, Constructor):
+        if t.type.type.universe == 0:
+            if s.type.type.universe == 0:
+                # Proof irrelevance: all instances of the same Prop type are equal
+                return t.type == s.type
+
         return (
             (t.type == s.type) and
             t.constructor_index == s.constructor_index and
@@ -402,7 +407,7 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
         if is_def_eq(t.func_expression, s.func_expression) and is_def_eq(t.arg_expression, s.arg_expression):
             return True
 
-    # Types don't match:
+    # Expression types don't match:
     if isinstance(t, Apply):
         whnf_func = whnf(t.func_expression)
         if isinstance(whnf_func, Recursor):
@@ -433,11 +438,22 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
         # Swap t and s
         return is_def_eq(s, t)
 
+    t_type = infer_type(t)
+    t_type_type = infer_type(t_type)
+    if isinstance(t_type_type, Sort) and t_type_type.universe == 0:
+        s_type = infer_type(s)
+        s_type_type = infer_type(s_type)
+        if isinstance(s_type_type, Sort) and s_type_type.universe == 0:
+            # both t's type and s's type are Props
+            if is_def_eq(t_type, s_type):
+                # Proof irrelevance says that t and s are the same
+                # since their types are the same which are Props
+                return True
+
     #TODO: does eta expansion need to be moved to the last thing?
     # and why does the Lean code appear to do eta expansion only if
     # t is Lambda and s not-lambda (or vice-versa) - seems like both need to be lambda (or built-in or constructor)
 
-    #TODO: make Prop have proof irrelevance
     return False
 
 def infer_type(expr: Expression) -> Expression:

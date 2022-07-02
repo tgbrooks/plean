@@ -241,8 +241,9 @@ def test_logic():
     assert is_def_eq(infer_type(h_Or_p_q2), Or_p_q)
     assert is_def_eq(infer_type(h_Or_p_q2), infer_type(h_Or_p_q2))
 
-    # TODO: this depends upon proof irrelevance
-    #assert is_def_eq(h_Or_p_q1, h_Or_p_q2)
+    # Check proof irrelevance
+    assert is_def_eq(h_Or_p_q1, h_Or_p_q2)
+    assert not is_def_eq(h_Or_p_q1, h_And_p_p)
 
     h_or_p_q1 = or_intro_left(p, q, hp)
     h_or_p_q2 = or_intro_right(p, q, hq)
@@ -281,9 +282,15 @@ def test_logic():
             )
         )
     )
+    proven_or_p_q = apply_list(and_p_q_implies_or_p_q, [p, q, and_intro(hp, hq)])
     assert is_def_eq(
-        infer_type(apply_list(and_p_q_implies_or_p_q, [p, q, and_intro(hp, hq)]),),
+        infer_type(proven_or_p_q),
         InstantiatedConstructedType(Or, (p,q)),
+    )
+    # Equal by proof irrelevance
+    assert is_def_eq(
+        proven_or_p_q,
+        or_intro_left(p, q, Variable(p, Token('hp'))),
     )
 
 def test_fails():
