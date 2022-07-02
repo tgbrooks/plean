@@ -368,3 +368,19 @@ def test_fails():
                 )
             )
         )
+
+    with pytest.raises(AssertionError):
+        # Test constructors with wrong universe
+        big_type = Variable(Sort(5), Token('T'))
+        ConstructedType(
+            constructors = (
+                ConstructorTemplate(
+                    name = Token('foo'),
+                    arg_names = (Token('a'),),
+                    arg_types = (Type,),
+                ),
+            ),
+            args = ((Token('a'), big_type),),
+            type = Sort(1),
+            name = Token("fail"),
+        )

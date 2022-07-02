@@ -78,6 +78,18 @@ class ConstructedType:
     name: Token
     def __repr__(self):
         return repr(self.name)
+    def __post_init__(self):
+        # Check the universe of the constructed type. Must be either:
+        # 1. 0 (i.e., Prop), or
+        # 2. At least as large as the universe of any type argument
+        max_universe = 0
+        for _,t in self.args:
+            t_type = infer_type(t)
+            assert isinstance(t_type, Sort), f"{self.type} must have all type arguments have their type being a Sort but had {t}:{t_type}"
+            max_universe = max(max_universe, t_type.universe)
+        if self.type.universe > 0:
+            assert self.type.universe >= max_universe, f"{self.type} is specified to be universe {self.type.universe} but expected to have universe at least {max_universe}"
+
 
 @dataclass(frozen=True)
 class InstantiatedConstructedType:
@@ -127,16 +139,16 @@ class Recursor:
                 case_type = case_type.result_type #TODO: substitute free variables into this?
             assert is_def_eq(case_type, self.result_type), f"Recursor for {self.type} expected to yield {self.result_type} but yields {case_type} instead"
 
-        # Prop types have extra conditions on their recursors. Either:
-        # 1. The recursor type must be a Prop, or
-        # 2. There is only one constructor for the type and its arguments are
-        #    other Props (or type indexes)
-        # These are forced by proof irrelevance
+        res_sort = infer_type(self.result_type)
+        assert isinstance(res_sort, Sort), f"Recursor for {self.type} must yield a Sort type but yields {self.result_type}:{res_sort}"
         if self.type.type.type.universe == 0:
-            res_sort = infer_type(self.result_type)
-            assert isinstance(res_sort, Sort), f"Recursor for {self.type} must yield a Sort type but yields {self.result_type}:{res_sort}"
+            # Prop types have extra conditions on their recursors. Either:
+            # 1. The recursor type must be a Prop, or
+            # 2. There is only one constructor for the type and its arguments are
+            #    other Props (or type indexes)
+            # These are forced by proof irrelevance
             if res_sort.universe != 0:
-                assert len(self.type.type.constructors) == 1, f"Recursor for {self.type} must yield a Sort type but yields {self.result_type}:{res_sort}"
+                assert len(self.type.type.constructors) == 1, f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
                 for constructor_template in self.type.type.constructors:
                     for t in constructor_template.arg_types:
                         assert is_prop_type(t), f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
