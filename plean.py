@@ -471,7 +471,6 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
         return is_def_eq(s, t)
 
     t_type = infer_type(t)
-    t_type_type = infer_type(t_type)
     if is_prop_type(t_type):
         s_type = infer_type(s)
         if is_prop_type(s_type):
