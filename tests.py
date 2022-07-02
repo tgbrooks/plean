@@ -348,3 +348,23 @@ def test_fails():
                 )
             )
         )
+
+    with pytest.raises(AssertionError):
+        a_type = Variable(Type, Token('T'))
+        a_value = Variable(a_type, Token('v'))
+        Recursor(
+            type = InstantiatedConstructedType(Or, (p,q)),
+            result_type = a_type,
+            match_cases = (
+                Lambda(
+                    Token('hp'),
+                    p,
+                    a_value
+                ),
+                Lambda(
+                    Token('hq'),
+                    q,
+                    a_value,
+                )
+            )
+        )

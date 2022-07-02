@@ -127,6 +127,21 @@ class Recursor:
                 case_type = case_type.result_type #TODO: substitute free variables into this?
             assert is_def_eq(case_type, self.result_type), f"Recursor for {self.type} expected to yield {self.result_type} but yields {case_type} instead"
 
+        # Prop types have extra conditions on their recursors. Either:
+        # 1. The recursor type must be a Prop, or
+        # 2. There is only one constructor for the type and its arguments are
+        #    other Props (or type indexes)
+        # These are forced by proof irrelevance
+        if self.type.type.type.universe == 0:
+            res_sort = infer_type(self.result_type)
+            assert isinstance(res_sort, Sort), f"Recursor for {self.type} must yield a Sort type but yields {self.result_type}:{res_sort}"
+            if res_sort.universe != 0:
+                assert len(self.type.type.constructors) == 1, f"Recursor for {self.type} must yield a Sort type but yields {self.result_type}:{res_sort}"
+                for constructor_template in self.type.type.constructors:
+                    for t in constructor_template.arg_types:
+                        assert is_prop_type(t), f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
+                        #TODO: allow t to be an index when we add support for type indexes
+
 Expression = Union[
     Variable,
     Constant,
@@ -166,6 +181,11 @@ def pretty_print(expr: Expression) -> str:
         else:
             raise NotImplementedError
     return pp(expr)
+
+def is_prop_type(t: Expression):
+    ''' Returns whether t's type is a Prop '''
+    t_type = infer_type(t)
+    return isinstance(t_type, Sort) and t_type.universe == 0
 
 def free_vars(expr: Expression):
     ''' Return list of unbound variables in the expression '''
@@ -440,10 +460,9 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
 
     t_type = infer_type(t)
     t_type_type = infer_type(t_type)
-    if isinstance(t_type_type, Sort) and t_type_type.universe == 0:
+    if is_prop_type(t_type):
         s_type = infer_type(s)
-        s_type_type = infer_type(s_type)
-        if isinstance(s_type_type, Sort) and s_type_type.universe == 0:
+        if is_prop_type(s_type):
             # both t's type and s's type are Props
             if is_def_eq(t_type, s_type):
                 # Proof irrelevance says that t and s are the same
