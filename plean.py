@@ -98,7 +98,7 @@ class InstantiatedConstructedType:
     def __post_init__(self):
         for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
             inferred_type = infer_type(arg)
-            assert is_def_eq(inferred_type, arg_type), f"Expected arg for {self.type.name} of type {arg_type} but got {inferred_type} instead"
+            assert is_def_eq(inferred_type, arg_type), f"Expected arg for {self.type.name} of type {arg_type} but got {arg}:{inferred_type} instead"
     def __repr__(self):
         args = ','.join(repr(x) for x in self.type_args) 
         return f"{self.type.name.val}({args})"
@@ -247,7 +247,8 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
     match expr:
         case Variable(type, name):
             if name == arg_name:
-                # TODO: assert type match?
+                arg_type = infer_type(arg_expression)
+                assert is_def_eq(arg_type, type), f"Cannot instantiate variable {name}:{type} as {arg_expression}:{arg_type}"
                 return arg_expression
             return expr
         case Constant(name):
