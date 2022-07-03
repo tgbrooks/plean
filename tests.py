@@ -66,7 +66,7 @@ def test_free_vars():
 
 def test_instantiate():
     assert instantiate(f, Token("x"), r) == fr
-    inst_app = instantiate(app_f, Token("x"), r) 
+    inst_app = instantiate(app_f, Token("x"), r)
     assert isinstance(inst_app, Apply)
     assert inst_app.arg_expression == app_fr.arg_expression
     assert inst_app == app_fr
@@ -282,6 +282,7 @@ def test_logic():
             )
         )
     )
+    infer_type(and_p_q_implies_or_p_q)
     proven_or_p_q = apply_list(and_p_q_implies_or_p_q, [p, q, and_intro(hp, hq)])
     assert is_def_eq(
         infer_type(proven_or_p_q),
@@ -291,6 +292,78 @@ def test_logic():
     assert is_def_eq(
         proven_or_p_q,
         or_intro_left(p, q, Variable(p, Token('hp'))),
+    )
+
+
+    # p and (q or r) implies (p and q) or (p and r)
+    p_and_q_or_p_and_r = InstantiatedConstructedType(
+        Or,
+        (
+            InstantiatedConstructedType(And, (p,q)),
+            InstantiatedConstructedType(And, (p,r))
+        )
+    )
+    p_and_q_or_r = InstantiatedConstructedType(
+        And,
+        (
+            p,
+            InstantiatedConstructedType(Or, (q,r)),
+        )
+    )
+    thm1 = lambda_chain(
+        arg_names = [Token('p'), Token('q'), Token('r'), Token('hp_and_q_or_r')],
+        arg_types = [Prop, Prop, Prop, p_and_q_or_r],
+        body = or_outro(
+            and_outro_right( # (q or r)
+                Variable(p_and_q_or_r, Token('hp_and_q_or_r')),
+                p,
+                InstantiatedConstructedType(Or, (q,r)),
+            ),
+            q,
+            r,
+            p_and_q_or_p_and_r,
+            Lambda(
+                Token('hq'),
+                q,
+                or_intro_left(
+                    InstantiatedConstructedType(And, (p,q)),
+                    InstantiatedConstructedType(And, (p,r)),
+                    and_intro(
+                        and_outro_left(
+                            Variable(p_and_q_or_r, Token('hp_and_q_or_r')),
+                            p,
+                            InstantiatedConstructedType(Or, (q,r))
+                        ),
+                        Variable(q, Token('hq')),
+                    )
+                )
+            ),
+            Lambda(
+                Token('hr'),
+                r,
+                or_intro_right(
+                    InstantiatedConstructedType(And, (p,q)),
+                    InstantiatedConstructedType(And, (p,r)),
+                    and_intro(
+                        and_outro_left(
+                            Variable(p_and_q_or_r, Token('hp_and_q_or_r')),
+                            p,
+                            InstantiatedConstructedType(Or, (q,r))
+                        ),
+                        Variable(r, Token('hr')),
+                    )
+                )
+            ),
+        )
+    )
+    assert is_def_eq(
+        infer_type(
+            apply_list(
+                thm1,
+                [p, q, r, Variable(p_and_q_or_r, Token("hp_and_q_or_r"))],
+            ),
+        ),
+        p_and_q_or_p_and_r
     )
 
 def test_fails():

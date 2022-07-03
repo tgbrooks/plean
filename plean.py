@@ -356,6 +356,19 @@ def apply_list(expr: Expression, args: list[Expression]) -> Expression:
     else:
         return apply_list(Apply(expr, args[0]), args[1:])
 
+def lambda_chain(arg_names: list[Token], arg_types: list[Expression], body: Expression):
+    ''' Create a multi-argument function by chaining lambdas together'''
+    assert len(arg_names) == len(arg_types)
+
+    if len(arg_names) == 0:
+        return body
+    return Lambda(
+        arg_names[0],
+        arg_types[0],
+        lambda_chain(arg_names[1:], arg_types[1:], body)
+    )
+    
+
 def is_def_eq(t: Expression, s: Expression) -> bool:
     # Populate constants
     if isinstance(t, Constant):
