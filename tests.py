@@ -260,6 +260,7 @@ def test_logic():
         hr
     )
 
+    and_p_q = InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))))
     and_p_q_implies_or_p_q = Lambda(
         Token('p'),
         Prop,
@@ -268,13 +269,13 @@ def test_logic():
             Prop,
             Lambda(
                 Token("h_and_p_q"),
-                InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                and_p_q,
                 or_intro_left(
                     Variable(Prop, Token('p')),
                     Variable(Prop, Token('q')),
                     and_outro_left(
                         Variable(
-                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                            and_p_q,
                             Token('h_and_p_q')
                         ),
                         Variable(Prop, Token('p')),
@@ -284,7 +285,7 @@ def test_logic():
             )
         )
     )
-    infer_type(and_p_q_implies_or_p_q)
+
     proven_or_p_q = apply_list(and_p_q_implies_or_p_q, [p, q, and_intro(hp, hq)])
     assert is_def_eq(
         infer_type(proven_or_p_q),
