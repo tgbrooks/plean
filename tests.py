@@ -163,6 +163,8 @@ def test_infer_type():
     )
     assert infer_type(Pi(Token('p'), Prop, p)) == Prop
     assert infer_type(Pi(Token('p'), Prop, q)) == Prop
+    assert infer_type(Pi(Token('hp'), p, Variable(Sort(5), Token('x')))) == Sort(5)
+    assert infer_type(Pi(Token('x'),  Variable(Sort(5), Token('X')), p)) == Prop # Due to imax
 
     assert infer_type(Apply(f_id, p)) == Prop
     assert infer_type(Pi(Token('p'), Prop, Prop)) == Sort(1)
