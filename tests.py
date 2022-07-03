@@ -161,6 +161,8 @@ def test_infer_type():
             Prop
         )
     )
+    assert infer_type(Pi(Token('p'), Prop, p)) == Prop
+    assert infer_type(Pi(Token('p'), Prop, q)) == Prop
 
     assert infer_type(Apply(f_id, p)) == Prop
     assert infer_type(Pi(Token('p'), Prop, Prop)) == Sort(1)

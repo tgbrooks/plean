@@ -509,16 +509,10 @@ def infer_type(expr: Expression) -> Expression:
         return Sort(expr.universe + 1)
     elif isinstance(expr, Pi):
         arg_type = infer_type(expr.arg_type)
-        result_type = infer_type(
-            instantiate(
-                expr.result_type,
-                expr.arg_name,
-                arg_type,
-            )
-        )
+        result_type = infer_type(expr.result_type)
         if isinstance(arg_type, Sort) and isinstance(result_type, Sort):
             return Sort(
-                max(
+                imax(
                     arg_type.universe,
                     result_type.universe,
                 )
