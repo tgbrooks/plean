@@ -52,7 +52,7 @@ pi = Pi(
     Pi(
         Token("y"),
         Prop,
-        Prop,
+        Variable(Prop, Token('y')),
     )
 )
 
@@ -125,7 +125,7 @@ def test_is_def_eq():
     assert not is_def_eq(f, fr)
     assert not is_def_eq(f_pqp, f_pqq)
     assert is_def_eq(pi, pi)
-    assert is_def_eq(pi, Pi(Token('y'), Prop, Pi(Token('z'), Prop, Prop)))
+    assert is_def_eq(pi, Pi(Token('y'), Prop, Pi(Token('z'), Prop, Variable(Prop, Token('z')))))
 
     assert is_def_eq(app_f, app_f)
 
@@ -171,9 +171,19 @@ def test_infer_type():
     assert infer_type(Pi(Token('p'), Sort(universe=1), Prop)) == Sort(2)
     assert infer_type(Pi(Token('p'), Prop, Sort(universe=1))) == Sort(universe=2)
 
-    assert infer_type(nat_one) == Nat #TODO
+    assert infer_type(nat_one) == Nat
     assert infer_type(nat_zero) == Nat
     assert infer_type(infer_type(nat_greater)) == Sort(1)
+
+    assert infer_type(Lambda(
+        Token('x'),
+        Type,
+        Pi(
+            Token('x'),
+            Type,
+            p
+        )
+    )) == Pi(Token('x'), Type, Prop)
 
 def test_nat():
     thm_one_gt_zero = Apply(
