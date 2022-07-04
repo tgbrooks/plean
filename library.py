@@ -72,7 +72,7 @@ def and_outro(and_p_q, p, q, side):
                     )
                 ),
             ),
-        ), 
+        ),
         and_p_q,
     )
 def and_outro_left(and_p_q, p, q):
