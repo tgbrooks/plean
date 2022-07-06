@@ -69,11 +69,13 @@ class ConstructorTemplate:
     name: Token
     arg_names: tuple[Token, ...]
     arg_types: tuple['Expression', ...]
+    result_indexes: tuple['Expression', ...]
 
 @dataclass(frozen=True)
 class ConstructedType:
     constructors: tuple[ConstructorTemplate, ...]
     args: tuple[tuple[Token, 'Expression'], ...]
+    indexes: tuple[tuple[Token, 'Expression'], ...]
     type: Sort
     name: Token
     def __repr__(self):
@@ -81,24 +83,32 @@ class ConstructedType:
     def __post_init__(self):
         # Check the universe of the constructed type. Must be either:
         # 1. 0 (i.e., Prop), or
-        # 2. At least as large as the universe of any type argument
+        # 2. At least as large as the universe of any type argument or index
         max_universe = 0
-        for _,t in self.args:
+        for _,t in (*self.args, *self.indexes):
             t_type = infer_type(t)
-            assert isinstance(t_type, Sort), f"{self.type} must have all type arguments have their type being a Sort but had {t}:{t_type}"
+            assert isinstance(t_type, Sort), f"{self.type} must have all type arguments/indexes have their type being a Sort but had {t}:{t_type}"
             max_universe = max(max_universe, t_type.universe)
         if self.type.universe > 0:
             assert self.type.universe >= max_universe, f"{self.type} is specified to be universe {self.type.universe} but expected to have universe at least {max_universe}"
+        for constructor in self.constructors:
+            assert len(constructor.result_indexes) == len(self.indexes), f"Incorrect number of indexes in constructor {self}.{constructor.name.val}"
 
 
 @dataclass(frozen=True)
 class InstantiatedConstructedType:
     type: ConstructedType
     type_args: tuple['Expression', ...]
+    type_indexes: tuple['Expression', ...]
     def __post_init__(self):
+        assert len(self.type_args) == len(self.type.args), f"Expected {len(self.type.args)} args for {self.type} but received {len(self.type_args)} instead"
         for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
             inferred_type = infer_type(arg)
             assert is_def_eq(inferred_type, arg_type), f"Expected arg for {self.type.name} of type {arg_type} but got {arg}:{inferred_type} instead"
+        assert len(self.type_indexes) == len(self.type.indexes), f"Expected {len(self.type.indexes)} indexes for {self.type} but received {len(self.type_indexes)} instead"
+        for indexe, (index_name, index_type) in zip(self.type_indexes, self.type.indexes):
+            inferred_type = infer_type(indexe)
+            assert is_def_eq(inferred_type, index_type), f"Expected indexe for {self.type.name} of type {index_type} {index_name} but got {indexe}:{inferred_type} instead"
     def __repr__(self):
         args = ','.join(repr(x) for x in self.type_args) 
         return f"{self.type.name.val}({args})"
@@ -109,12 +119,18 @@ class Constructor:
     constructor_index: int
     args: tuple['Expression',...]
     type_args: tuple['Expression',...]
+    type_indexes: tuple['Expression', ...]
 
     def __post_init__(self):
         constructor_template = self.type.constructors[self.constructor_index]
+
         assert len(self.type_args) == len(self.type.args), f"Expected {len(self.type.args)} type args for constructor of {self.type} but got {len(self.type_args)}"
         for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
             assert is_def_eq(infer_type(arg), arg_type), f"Expected type {arg_type} for constructor type arg {arg_name} of {self.type} but got {arg}"
+
+        assert len(self.type_indexes) == len(self.type.indexes), f"Expected {len(self.type.indexes)} type indexes for constructor of {self.type} but got {len(self.type_indexes)}"
+        for index, (index_name, index_type) in zip(self.type_indexes, self.type.indexes):
+            assert is_def_eq(infer_type(index), index_type), f"Expected type {index_type} for constructor type index {index_name} of {self.type} but got {index}"
 
         assert len(self.args) == len(constructor_template.arg_types), f"Expected {len(constructor_template.arg_types)} args for type {self.type} constructor but got {len(self.args)}"
         for arg, (arg_type) in zip(self.args, constructor_template.arg_types):
@@ -285,12 +301,16 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                     for constructor_arg in expr.args),
                 tuple(instantiate(type_arg, arg_name, arg_expression)
                     for type_arg in expr.type_args),
+                tuple(instantiate(type_index, arg_name, arg_expression)
+                    for type_index in expr.type_indexes),
             )
         case InstantiatedConstructedType(_):
             return InstantiatedConstructedType(
                 expr.type,
                 tuple(instantiate(type_arg, arg_name, arg_expression)
                     for type_arg in expr.type_args),
+                tuple(instantiate(type_index, arg_name, arg_expression)
+                    for type_index in expr.type_indexes),
             )
         case Recursor(_,_,_):
             return Recursor(
@@ -529,6 +549,7 @@ def infer_type(expr: Expression) -> Expression:
         return InstantiatedConstructedType(
             expr.type,
             expr.type_args,
+            expr.type_indexes,
         )
     elif isinstance(expr, InstantiatedConstructedType):
         return expr.type.type

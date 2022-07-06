@@ -10,8 +10,9 @@ Type = Sort(1)
 false = ConstructedType(
     constructors = (),
     args =  (),
+    indexes = (),
     type = Prop,
-    name = Token("false")
+    name = Token("false"),
 )
 
 true = ConstructedType(
@@ -20,17 +21,20 @@ true = ConstructedType(
             Token("intro"),
             tuple(),
             tuple(),
+            tuple(),
         ),
     ),
     args = (),
+    indexes = (),
     type = Prop,
-    name = Token("true")
+    name = Token("true"),
 )
 true_intro = Constructor(
-    true,
-    0,
-    tuple(),
+    type = true,
+    constructor_index = 0,
+    args = (),
     type_args = (),
+    type_indexes = (),
 )
 
 And = ConstructedType(
@@ -39,10 +43,12 @@ And = ConstructedType(
             Token("intro"),
             (Token('a'), Token('b')),
             (Variable(Prop, Token('alpha')), Variable(Prop, Token('beta')),),
+            (),
         ),
     ),
     name = Token("and"),
     args = ((Token('alpha'), Prop), (Token('beta'), Prop)),
+    indexes = (),
     type = Prop,
 )
 def and_intro(hp, hq):
@@ -53,6 +59,7 @@ def and_intro(hp, hq):
         constructor_index=0,
         args = (hp, hq),
         type_args = (p, q),
+        type_indexes = (),
     )
 def and_outro(and_p_q, p, q, side):
     type_ = infer_type(and_p_q)
@@ -86,15 +93,18 @@ Or = ConstructedType(
             Token('intro_l'),
             (Token('a'),),
             (Variable(Prop, Token('alpha')),),
+            (),
         ),
         ConstructorTemplate(
             Token('intro_r'),
             (Token('b'),),
             (Variable(Prop, Token('beta')),),
+            (),
         ),
     ),
     name = Token("or"),
     args = ((Token('alpha'), Prop), (Token('beta'), Prop)),
+    indexes = (),
     type = Prop,
 )
 def or_intro_left(p, q, hp):
@@ -103,6 +113,7 @@ def or_intro_left(p, q, hp):
         constructor_index = 0,
         args = (hp,),
         type_args = (p, q),
+        type_indexes = (),
     )
 def or_intro_right(p, q, hq):
     return Constructor(
@@ -110,6 +121,7 @@ def or_intro_right(p, q, hq):
         constructor_index = 1,
         args = (hq,),
         type_args = (p, q),
+        type_indexes = (),
     )
 def or_outro(or_p_q, p, q, r, p_then_r, q_then_r):
     or_p_q_type = infer_type(or_p_q)
@@ -130,29 +142,33 @@ Nat_type = ConstructedType(
     (
         ConstructorTemplate(
             Token("Zero"),
-            tuple(),
-            tuple(),
+            (),
+            (),
+            (),
         ),
         ConstructorTemplate(
             Token("Succ"),
             (Token("n"),),
             (Constant(Token('Nat')),),
+            (),
         ),
     ),
     args = (),
+    indexes = (),
     type = Type,
     name = Token('Nat'),
 )
-Nat = InstantiatedConstructedType(Nat_type, ())
+Nat = InstantiatedConstructedType(Nat_type, (), ())
 constants['Nat'] = Nat
 nat_zero = Constructor(
     Nat.type,
     0,
     args  = (),
     type_args = (),
+    type_indexes = (),
 )
 nat_succ = Nat.type.constructors[1]
-nat_one = Constructor(Nat.type, 1, args=(nat_zero,), type_args=())
+nat_one = Constructor(Nat.type, 1, args=(nat_zero,), type_args=(), type_indexes=())
 
 
 # Basic destructor for testing purposes
@@ -220,6 +236,7 @@ nat_succ_greater_zero = Variable(
                     1,
                     args = (Variable(Nat, Token('n')),),
                     type_args = (),
+                    type_indexes = (),
                 ),
             ),
             nat_zero,

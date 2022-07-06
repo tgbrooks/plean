@@ -217,18 +217,20 @@ def test_nat():
 def test_logic():
     hp, hq = Variable(p, Token("hp")), Variable(q, Token("hq"))
     hr = Variable(r, Token("hr"))
-    And_p_q = InstantiatedConstructedType(And, (p, q))
+    And_p_q = InstantiatedConstructedType(And, (p, q), ())
     h_And_p_q = Constructor(
         type = And,
         constructor_index=0,
         args = (hp, hq),
         type_args = (p, q),
+        type_indexes = (),
     )
     h_And_p_p = Constructor(
         type = And,
         constructor_index=0,
         args = (hp, hp),
         type_args = (p,p),
+        type_indexes = (),
     )
     assert is_def_eq(infer_type(h_And_p_q), And_p_q)
     assert not is_def_eq(infer_type(h_And_p_p), And_p_q)
@@ -237,18 +239,20 @@ def test_logic():
     assert is_def_eq(infer_type(and_outro_left(h_And_p_q, p, q)), p)
     assert is_def_eq(infer_type(and_outro_right(h_And_p_q, p, q)), q)
 
-    Or_p_q = InstantiatedConstructedType(Or, (p,q))
+    Or_p_q = InstantiatedConstructedType(Or, (p,q), ())
     h_Or_p_q1 = Constructor(
         type = Or,
         constructor_index = 0,
         args = (hp,),
         type_args = (p,q),
+        type_indexes = (),
     )
     h_Or_p_q2 = Constructor(
         type = Or,
         constructor_index = 1,
         args = (hq,),
         type_args = (p,q),
+        type_indexes = (),
     )
 
     assert is_def_eq(infer_type(h_Or_p_q1), Or_p_q)
@@ -272,7 +276,7 @@ def test_logic():
         hr
     )
 
-    and_p_q = InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))))
+    and_p_q = InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))), ())
     and_p_q_implies_or_p_q = Lambda(
         Token('p'),
         Prop,
@@ -301,7 +305,7 @@ def test_logic():
     proven_or_p_q = apply_list(and_p_q_implies_or_p_q, [p, q, and_intro(hp, hq)])
     assert is_def_eq(
         infer_type(proven_or_p_q),
-        InstantiatedConstructedType(Or, (p,q)),
+        InstantiatedConstructedType(Or, (p,q), ()),
     )
     # Equal by proof irrelevance
     assert is_def_eq(
@@ -314,16 +318,18 @@ def test_logic():
     p_and_q_or_p_and_r = InstantiatedConstructedType(
         Or,
         (
-            InstantiatedConstructedType(And, (p,q)),
-            InstantiatedConstructedType(And, (p,r))
-        )
+            InstantiatedConstructedType(And, (p,q), ()),
+            InstantiatedConstructedType(And, (p,r), ())
+        ),
+        ()
     )
     p_and_q_or_r = InstantiatedConstructedType(
         And,
         (
             p,
-            InstantiatedConstructedType(Or, (q,r)),
-        )
+            InstantiatedConstructedType(Or, (q,r), ()),
+        ),
+        ()
     )
     thm1 = lambda_chain(
         arg_names = [Token('p'), Token('q'), Token('r'), Token('hp_and_q_or_r')],
@@ -332,7 +338,7 @@ def test_logic():
             and_outro_right( # (q or r)
                 Variable(p_and_q_or_r, Token('hp_and_q_or_r')),
                 p,
-                InstantiatedConstructedType(Or, (q,r)),
+                InstantiatedConstructedType(Or, (q,r), ()),
             ),
             q,
             r,
@@ -341,13 +347,13 @@ def test_logic():
                 Token('hq'),
                 q,
                 or_intro_left(
-                    InstantiatedConstructedType(And, (p,q)),
-                    InstantiatedConstructedType(And, (p,r)),
+                    InstantiatedConstructedType(And, (p,q), ()),
+                    InstantiatedConstructedType(And, (p,r), ()),
                     and_intro(
                         and_outro_left(
                             Variable(p_and_q_or_r, Token('hp_and_q_or_r')),
                             p,
-                            InstantiatedConstructedType(Or, (q,r))
+                            InstantiatedConstructedType(Or, (q,r), ())
                         ),
                         Variable(q, Token('hq')),
                     )
@@ -357,13 +363,13 @@ def test_logic():
                 Token('hr'),
                 r,
                 or_intro_right(
-                    InstantiatedConstructedType(And, (p,q)),
-                    InstantiatedConstructedType(And, (p,r)),
+                    InstantiatedConstructedType(And, (p,q), ()),
+                    InstantiatedConstructedType(And, (p,r), ()),
                     and_intro(
                         and_outro_left(
                             Variable(p_and_q_or_r, Token('hp_and_q_or_r')),
                             p,
-                            InstantiatedConstructedType(Or, (q,r))
+                            InstantiatedConstructedType(Or, (q,r), ())
                         ),
                         Variable(r, Token('hr')),
                     )
@@ -392,16 +398,16 @@ def test_fails():
                 Prop,
                 Lambda(
                     Token("h_or_p_q"),
-                    InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                    InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))), ()),
                     and_intro(
                         or_outro(
                             Variable(
-                                InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                                InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))), ()),
                                 Token('h_and_p_q')
                             ),
                             Variable(Prop, Token('p')),
                             Variable(Prop, Token('q')),
-                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))), ()),
                             Lambda(
                                 Token('hp'),
                                 Variable(Prop, Token('p')),
@@ -415,12 +421,12 @@ def test_fails():
                         ),
                         or_outro(
                             Variable(
-                                InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                                InstantiatedConstructedType(Or, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))), ()),
                                 Token('h_and_p_q')
                             ),
                             Variable(Prop, Token('p')),
                             Variable(Prop, Token('q')),
-                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q')))),
+                            InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))), ()),
                             Lambda(
                                 Token('hp'),
                                 Variable(Prop, Token('p')),
@@ -441,7 +447,7 @@ def test_fails():
         a_type = Variable(Type, Token('T'))
         a_value = Variable(a_type, Token('v'))
         Recursor(
-            type = InstantiatedConstructedType(Or, (p,q)),
+            type = InstantiatedConstructedType(Or, (p,q), ()),
             result_type = a_type,
             match_cases = (
                 Lambda(
@@ -466,9 +472,11 @@ def test_fails():
                     name = Token('foo'),
                     arg_names = (Token('a'),),
                     arg_types = (Type,),
+                    result_indexes = (),
                 ),
             ),
             args = ((Token('a'), big_type),),
+            indexes = (),
             type = Sort(1),
             name = Token("fail"),
         )
