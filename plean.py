@@ -146,7 +146,7 @@ class Recursor:
             # 1. The recursor type must be a Prop, or
             # 2. There is only one constructor for the type and its arguments are
             #    other Props (or type indexes)
-            # These are forced by proof irrelevance
+            # Meeting these conditions is called "large elimination" (See Carneiro 2019)
             if res_sort.universe != 0:
                 assert len(self.type.type.constructors) == 1, f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
                 for constructor_template in self.type.type.constructors:
