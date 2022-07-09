@@ -167,7 +167,7 @@ Nat_type = ConstructedType(
         ),
         ConstructorTemplate(
             Token("Succ"),
-            (Token("n"),),
+            (Token("nat_n"),),
             (Constant(Token('Nat')),),
             (),
         ),

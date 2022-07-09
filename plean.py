@@ -123,7 +123,7 @@ class InstantiatedConstructedType:
             inferred_type = infer_type(index_instantiated)
             assert is_def_eq(inferred_type, index_type_instantiated), f"Expected index {index_name} for {self.type.name} of type {index_type_instantiated} but got {index}:{inferred_type} instead"
     def __repr__(self):
-        args = ','.join(repr(x) for x in self.type_args) 
+        args = ','.join(repr(x) for x in self.type_args)
         return f"{self.type.name.val}({args})"
 
 @dataclass(frozen=True)
@@ -313,6 +313,11 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                 instantiate(expr.body, arg_name, arg_expression),
             )
         case Constructor(_, _):
+            if arg_name in expr.template.arg_names:
+                raise NotImplementedError(f"Cannot yet substitute values ({arg_name}) into a constructor for {expr.type} with constructor argument of the same name")
+                # NOTE: constructor indexes are evaluated in the environment containing the arguments
+                #       so we have to skip over instantiating variables with the same name as the arguments
+                #       But we still need to instantiate other free variables
             return Constructor(
                 expr.type,
                 expr.constructor_index,
@@ -401,7 +406,7 @@ def lambda_chain(arg_names: list[Token], arg_types: list[Expression], body: Expr
         arg_types[0],
         lambda_chain(arg_names[1:], arg_types[1:], body)
     )
-    
+
 
 def is_def_eq(t: Expression, s: Expression) -> bool:
     # Populate constants
