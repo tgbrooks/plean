@@ -134,23 +134,25 @@ class Constructor:
     type_args: tuple['Expression',...]
 
     def __post_init__(self):
-        constructor_template = self.type.constructors[self.constructor_index]
-
         assert len(self.type_args) == len(self.type.args), f"Expected {len(self.type.args)} type args for constructor of {self.type} but got {len(self.type_args)}"
         for i, (arg, (arg_name, arg_type)) in enumerate(zip(self.type_args, self.type.args)):
             arg_names_head = tuple(name for name, type in self.type.args)[:i]
             arg_vals_head = self.type_args[:i]
             arg_instantiated = instantiate_list( arg_names_head, arg_vals_head, arg)
             arg_type_instantiated = instantiate_list(arg_names_head, arg_vals_head, arg_type)
-            assert is_def_eq(infer_type(arg_instantiated), arg_type_instantiated), f"Expected type {arg_type_instantiated} for constructor type arg {arg_name} of {self.type}.{self.type.constructors[self.constructor_index].name} but got {arg_instantiated}"
+            assert is_def_eq(infer_type(arg_instantiated), arg_type_instantiated), f"Expected type {arg_type_instantiated} for constructor type arg {arg_name} of {self.type}.{self.template.name} but got {arg_instantiated}"
 
-        assert len(self.args) == len(constructor_template.arg_types), f"Expected {len(constructor_template.arg_types)} args for type {self.type} constructor but got {len(self.args)}"
-        for arg, (arg_type) in zip(self.args, constructor_template.arg_types):
+        assert len(self.args) == len(self.template.arg_types), f"Expected {len(self.template.arg_types)} args for type {self.type} constructor but got {len(self.args)}"
+        for arg, (arg_type) in zip(self.args, self.template.arg_types):
             instantiated_arg = instantiate_list(
                 tuple(name for name, type in self.type.args), self.type_args, arg
             )
             arg_type = instantiate_type_args(self.type.args, self.type_args, arg_type)
-            assert is_def_eq(infer_type(instantiated_arg), arg_type), f"Expected arg of type {arg_type} in constructor for {self.type}.{self.type.constructors[self.constructor_index].name} but got {arg}"
+            assert is_def_eq(infer_type(instantiated_arg), arg_type), f"Expected arg of type {arg_type} in constructor for {self.type}.{self.template.name} but got {arg}"
+
+    @property
+    def template(self):
+        return self.type.constructors[self.constructor_index]
 
 @dataclass(frozen=True)
 class Recursor:
@@ -571,11 +573,10 @@ def infer_type(expr: Expression) -> Expression:
             ))
         )
     elif isinstance(expr, Constructor):
-        cons_template = expr.type.constructors[expr.constructor_index]
         return InstantiatedConstructedType(
             expr.type,
             expr.type_args,
-            tuple(instantiate_list(cons_template.arg_names, expr.type_args, x) for x in cons_template.result_indexes),
+            tuple(instantiate_list(expr.template.arg_names, expr.type_args, x) for x in expr.template.result_indexes),
         )
     elif isinstance(expr, InstantiatedConstructedType):
         return expr.type.type
