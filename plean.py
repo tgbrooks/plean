@@ -70,6 +70,8 @@ class ConstructorTemplate:
     arg_names: tuple[Token, ...]
     arg_types: tuple['Expression', ...]
     result_indexes: tuple['Expression', ...]
+    def __post_init__(self):
+        assert len(self.arg_names) == len(self.arg_types), f"Constructor template {self.name} has mismatch of specified arg names and arg types lengths"
 
 @dataclass(frozen=True)
 class ConstructedType:
@@ -101,14 +103,25 @@ class InstantiatedConstructedType:
     type_args: tuple['Expression', ...]
     type_indexes: tuple['Expression', ...]
     def __post_init__(self):
+        # Check arg types match expectation
         assert len(self.type_args) == len(self.type.args), f"Expected {len(self.type.args)} args for {self.type} but received {len(self.type_args)} instead"
-        for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
-            inferred_type = infer_type(arg)
-            assert is_def_eq(inferred_type, arg_type), f"Expected arg for {self.type.name} of type {arg_type} but got {arg}:{inferred_type} instead"
+        for i, (arg, (arg_name, arg_type)) in enumerate(zip(self.type_args, self.type.args)):
+            arg_names_head = tuple(name for name, type in self.type.args)[:i]
+            arg_vals_head = self.type_args[:i]
+            arg_instantiated = instantiate_list( arg_names_head, arg_vals_head, arg)
+            arg_type_instantiated = instantiate_list(arg_names_head, arg_vals_head, arg_type)
+            inferred_type = infer_type(arg_instantiated)
+            assert is_def_eq(inferred_type, arg_type_instantiated), f"Expected arg for {self.type.name} of type {arg_type_instantiated} but got {arg}:{inferred_type} instead"
+        # Check index types match expectation
         assert len(self.type_indexes) == len(self.type.indexes), f"Expected {len(self.type.indexes)} indexes for {self.type} but received {len(self.type_indexes)} instead"
-        for indexe, (index_name, index_type) in zip(self.type_indexes, self.type.indexes):
-            inferred_type = infer_type(indexe)
-            assert is_def_eq(inferred_type, index_type), f"Expected indexe for {self.type.name} of type {index_type} {index_name} but got {indexe}:{inferred_type} instead"
+        for index, (index_name, index_type) in zip(self.type_indexes, self.type.indexes):
+            # TODO: do we also need to instantiate earlier indexes? Can one indexe depend upon a previous one?
+            arg_names_head = tuple(name for name, type in self.type.args)
+            arg_vals_head = self.type_args
+            index_instantiated = instantiate_list(arg_names_head, arg_vals_head, index)
+            index_type_instantiated = instantiate_list(arg_names_head, arg_vals_head, index_type)
+            inferred_type = infer_type(index_instantiated)
+            assert is_def_eq(inferred_type, index_type_instantiated), f"Expected index {index_name} for {self.type.name} of type {index_type_instantiated} but got {index}:{inferred_type} instead"
     def __repr__(self):
         args = ','.join(repr(x) for x in self.type_args) 
         return f"{self.type.name.val}({args})"
@@ -119,23 +132,25 @@ class Constructor:
     constructor_index: int
     args: tuple['Expression',...]
     type_args: tuple['Expression',...]
-    type_indexes: tuple['Expression', ...]
 
     def __post_init__(self):
         constructor_template = self.type.constructors[self.constructor_index]
 
         assert len(self.type_args) == len(self.type.args), f"Expected {len(self.type.args)} type args for constructor of {self.type} but got {len(self.type_args)}"
-        for arg, (arg_name, arg_type) in zip(self.type_args, self.type.args):
-            assert is_def_eq(infer_type(arg), arg_type), f"Expected type {arg_type} for constructor type arg {arg_name} of {self.type} but got {arg}"
-
-        assert len(self.type_indexes) == len(self.type.indexes), f"Expected {len(self.type.indexes)} type indexes for constructor of {self.type} but got {len(self.type_indexes)}"
-        for index, (index_name, index_type) in zip(self.type_indexes, self.type.indexes):
-            assert is_def_eq(infer_type(index), index_type), f"Expected type {index_type} for constructor type index {index_name} of {self.type} but got {index}"
+        for i, (arg, (arg_name, arg_type)) in enumerate(zip(self.type_args, self.type.args)):
+            arg_names_head = tuple(name for name, type in self.type.args)[:i]
+            arg_vals_head = self.type_args[:i]
+            arg_instantiated = instantiate_list( arg_names_head, arg_vals_head, arg)
+            arg_type_instantiated = instantiate_list(arg_names_head, arg_vals_head, arg_type)
+            assert is_def_eq(infer_type(arg_instantiated), arg_type_instantiated), f"Expected type {arg_type_instantiated} for constructor type arg {arg_name} of {self.type}.{self.type.constructors[self.constructor_index].name} but got {arg_instantiated}"
 
         assert len(self.args) == len(constructor_template.arg_types), f"Expected {len(constructor_template.arg_types)} args for type {self.type} constructor but got {len(self.args)}"
         for arg, (arg_type) in zip(self.args, constructor_template.arg_types):
+            instantiated_arg = instantiate_list(
+                tuple(name for name, type in self.type.args), self.type_args, arg
+            )
             arg_type = instantiate_type_args(self.type.args, self.type_args, arg_type)
-            assert is_def_eq(infer_type(arg), arg_type), f"Expected arg of type {arg_type} in constructor for {self.type} but got {arg}"
+            assert is_def_eq(infer_type(instantiated_arg), arg_type), f"Expected arg of type {arg_type} in constructor for {self.type}.{self.type.constructors[self.constructor_index].name} but got {arg}"
 
 @dataclass(frozen=True)
 class Recursor:
@@ -161,14 +176,13 @@ class Recursor:
             # Prop types have extra conditions on their recursors. Either:
             # 1. The recursor type must be a Prop, or
             # 2. There is only one constructor for the type and its arguments are
-            #    other Props (or type indexes)
+            #    other Props
             # Meeting these conditions is called "large elimination" (See Carneiro 2019)
             if res_sort.universe != 0:
                 assert len(self.type.type.constructors) == 1, f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
                 for constructor_template in self.type.type.constructors:
                     for t in constructor_template.arg_types:
                         assert is_prop_type(t), f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
-                        #TODO: allow t to be an index when we add support for type indexes
 
 Expression = Union[
     Variable,
@@ -252,7 +266,10 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                 arg_type = infer_type(arg_expression)
                 assert is_def_eq(arg_type, type), f"Cannot instantiate variable {name}:{type} as {arg_expression}:{arg_type}"
                 return arg_expression
-            return expr
+            return Variable(
+                instantiate(expr.type, arg_name, arg_expression),
+                expr.name,
+            )
         case Constant(name):
             return constants[name.val]
         case Sort(_):
@@ -301,8 +318,6 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
                     for constructor_arg in expr.args),
                 tuple(instantiate(type_arg, arg_name, arg_expression)
                     for type_arg in expr.type_args),
-                tuple(instantiate(type_index, arg_name, arg_expression)
-                    for type_index in expr.type_indexes),
             )
         case InstantiatedConstructedType(_):
             return InstantiatedConstructedType(
@@ -320,6 +335,16 @@ def instantiate(expr: Expression, arg_name: Token, arg_expression: Expression) -
             )
         case _:
             raise NotImplementedError(f"Unknown how to instantiate {expr}")
+
+def instantiate_list(arg_names: tuple[Token,...], arg_values: tuple['Expression',...], expr: 'Expression'):
+    ''' Instiate a list of var names and values into an expr'''
+    for (arg_name, arg_value) in zip(arg_names, arg_values):
+        expr = instantiate(
+            expr,
+            arg_name,
+            arg_value
+        )
+    return expr
 
 def instantiate_type_args(arg_spec: tuple[tuple[Token, 'Expression'],...], arg_values: tuple['Expression',...], expr: 'Expression') -> 'Expression':
     # Instantiate the type arguments into an expression
@@ -546,10 +571,11 @@ def infer_type(expr: Expression) -> Expression:
             ))
         )
     elif isinstance(expr, Constructor):
+        cons_template = expr.type.constructors[expr.constructor_index]
         return InstantiatedConstructedType(
             expr.type,
             expr.type_args,
-            expr.type_indexes,
+            tuple(instantiate_list(cons_template.arg_names, expr.type_args, x) for x in cons_template.result_indexes),
         )
     elif isinstance(expr, InstantiatedConstructedType):
         return expr.type.type

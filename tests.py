@@ -223,14 +223,12 @@ def test_logic():
         constructor_index=0,
         args = (hp, hq),
         type_args = (p, q),
-        type_indexes = (),
     )
     h_And_p_p = Constructor(
         type = And,
         constructor_index=0,
         args = (hp, hp),
         type_args = (p,p),
-        type_indexes = (),
     )
     assert is_def_eq(infer_type(h_And_p_q), And_p_q)
     assert not is_def_eq(infer_type(h_And_p_p), And_p_q)
@@ -245,14 +243,12 @@ def test_logic():
         constructor_index = 0,
         args = (hp,),
         type_args = (p,q),
-        type_indexes = (),
     )
     h_Or_p_q2 = Constructor(
         type = Or,
         constructor_index = 1,
         args = (hq,),
         type_args = (p,q),
-        type_indexes = (),
     )
 
     assert is_def_eq(infer_type(h_Or_p_q1), Or_p_q)
@@ -386,6 +382,27 @@ def test_logic():
         ),
         p_and_q_or_p_and_r
     )
+
+def test_eq():
+    T = Variable(Type, Token('T'))
+    x = Variable(T, Token('x'))
+    y = Variable(T, Token('y'))
+    eq_xy = InstantiatedConstructedType(
+        type = Eq,
+        type_args = (T, x,),
+        type_indexes = (y,)
+    )
+    heq_xx = rfl(x)
+    heq_xy = Variable(
+        InstantiatedConstructedType(
+            type = Eq,
+            type_args = (T,x,),
+            type_indexes = (y,),
+        ),
+        Token('heq_pq')
+    )
+    assert is_def_eq(infer_type(heq_xy), eq_xy)
+    assert not is_def_eq(infer_type(heq_xx), heq_xy)
 
 def test_fails():
     with pytest.raises(AssertionError):

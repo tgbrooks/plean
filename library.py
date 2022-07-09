@@ -34,7 +34,6 @@ true_intro = Constructor(
     constructor_index = 0,
     args = (),
     type_args = (),
-    type_indexes = (),
 )
 
 And = ConstructedType(
@@ -59,7 +58,6 @@ def and_intro(hp, hq):
         constructor_index=0,
         args = (hp, hq),
         type_args = (p, q),
-        type_indexes = (),
     )
 def and_outro(and_p_q, p, q, side):
     type_ = infer_type(and_p_q)
@@ -113,7 +111,6 @@ def or_intro_left(p, q, hp):
         constructor_index = 0,
         args = (hp,),
         type_args = (p, q),
-        type_indexes = (),
     )
 def or_intro_right(p, q, hq):
     return Constructor(
@@ -121,7 +118,6 @@ def or_intro_right(p, q, hq):
         constructor_index = 1,
         args = (hq,),
         type_args = (p, q),
-        type_indexes = (),
     )
 def or_outro(or_p_q, p, q, r, p_then_r, q_then_r):
     or_p_q_type = infer_type(or_p_q)
@@ -136,6 +132,29 @@ def or_outro(or_p_q, p, q, r, p_then_r, q_then_r):
             ),
         ),
         or_p_q,
+    )
+
+Eq = ConstructedType(
+    constructors = (
+        ConstructorTemplate(
+            name = Token('rfl'),
+            arg_names = (Token('val'),),
+            arg_types = (Variable(Type, Token('type')),),
+            result_indexes = (Variable(Variable(Type, Token('type')), Token('val2')),),
+        ),
+    ),
+    args = ((Token('type'), Type), (Token('val1'), Variable(Type, Token('type')))),
+    indexes = ((Token('val2'), Variable(Type, Token('type'))),),
+    type = Prop,
+    name = Token('Eq')
+)
+def rfl(a):
+    type = infer_type(a)
+    return Constructor(
+        type = Eq,
+        constructor_index = 0,
+        args = (a,),
+        type_args = (type,a),
     )
 
 Nat_type = ConstructedType(
@@ -165,10 +184,9 @@ nat_zero = Constructor(
     0,
     args  = (),
     type_args = (),
-    type_indexes = (),
 )
 nat_succ = Nat.type.constructors[1]
-nat_one = Constructor(Nat.type, 1, args=(nat_zero,), type_args=(), type_indexes=())
+nat_one = Constructor(Nat.type, 1, args=(nat_zero,), type_args=())
 
 
 # Basic destructor for testing purposes
@@ -236,7 +254,6 @@ nat_succ_greater_zero = Variable(
                     1,
                     args = (Variable(Nat, Token('n')),),
                     type_args = (),
-                    type_indexes = (),
                 ),
             ),
             nat_zero,
