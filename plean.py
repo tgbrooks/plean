@@ -123,7 +123,7 @@ class InstantiatedConstructedType:
             inferred_type = infer_type(index_instantiated)
             assert is_def_eq(inferred_type, index_type_instantiated), f"Expected index {index_name} for {self.type.name} of type {index_type_instantiated} but got {index}:{inferred_type} instead"
     def __repr__(self):
-        args = ','.join(repr(x) for x in self.type_args)
+        args = ','.join(repr(x) for x in (*self.type_args, *self.type_indexes))
         return f"{self.type.name.val}({args})"
 
 @dataclass(frozen=True)
@@ -160,6 +160,13 @@ class Recursor:
     result_type: 'Expression'
     match_cases: tuple['Expression', ...]
     def __post_init__(self):
+        result_type = apply_list(
+            self.result_type,
+            list(self.type.type_indexes),
+        )
+        res_sort = infer_type(result_type)
+        assert isinstance(res_sort, Sort), f"Recursor for {self.type} must yield a Sort type but yields {result_type}:{res_sort}"
+
         # Verify types match
         assert len(self.match_cases) == len(self.type.type.constructors), f"Recursor has {len(self.match_cases)} cases but {self.type} needs {len(self.type.type.constructors)}"
         for constructor, case in zip(self.type.type.constructors, self.match_cases):
@@ -170,10 +177,8 @@ class Recursor:
                 assert is_def_eq(case_type.arg_type, arg_type), f"Recursor for {self.type} expected to have match-case accepting {arg_type} but had type {case_type}"
                 # Select the next step and compare it
                 case_type = case_type.result_type #TODO: substitute free variables into this?
-            assert is_def_eq(case_type, self.result_type), f"Recursor for {self.type} expected to yield {self.result_type} but yields {case_type} instead"
+            assert is_def_eq(case_type, result_type), f"Recursor for {self.type} expected to yield {result_type} but yields {case_type} instead"
 
-        res_sort = infer_type(self.result_type)
-        assert isinstance(res_sort, Sort), f"Recursor for {self.type} must yield a Sort type but yields {self.result_type}:{res_sort}"
         if self.type.type.type.universe == 0:
             # Prop types have extra conditions on their recursors. Either:
             # 1. The recursor type must be a Prop, or
@@ -181,10 +186,10 @@ class Recursor:
             #    other Props
             # Meeting these conditions is called "large elimination" (See Carneiro 2019)
             if res_sort.universe != 0:
-                assert len(self.type.type.constructors) == 1, f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
+                assert len(self.type.type.constructors) == 1, f"Recursor for {self.type} must yield a Prop type but yields {result_type}:{res_sort}"
                 for constructor_template in self.type.type.constructors:
                     for t in constructor_template.arg_types:
-                        assert is_prop_type(t), f"Recursor for {self.type} must yield a Prop type but yields {self.result_type}:{res_sort}"
+                        assert is_prop_type(t), f"Recursor for {self.type} must yield a Prop type but yields {result_type}:{res_sort}"
 
 Expression = Union[
     Variable,
@@ -506,8 +511,7 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
                     apply_list(match_case, list(whnf_arg.args)),
                     s
                 )
-            else:
-                raise NotImplementedError(f"Expected Constructor of {recursor.type}, received {whnf_arg}")
+            # TODO: do we need to handle anything other than Constructors?
         elif isinstance(whnf_func, Lambda):
             # Beta reduction: evaluate the argument into the function
             return is_def_eq(
@@ -586,10 +590,14 @@ def infer_type(expr: Expression) -> Expression:
     elif isinstance(expr, InstantiatedConstructedType):
         return expr.type.type
     elif isinstance(expr, Recursor):
+        result_type =  apply_list(
+            expr.result_type,
+            list(expr.type.type_indexes),
+        )
         return Pi(
             Token('?'), # TODO: Allow recursors to have dependent return types
             expr.type,
-            expr.result_type,
+            result_type,
         )
     else:
         raise NotImplementedError

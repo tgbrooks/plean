@@ -255,6 +255,18 @@ def test_logic():
     assert is_def_eq(infer_type(h_Or_p_q2), Or_p_q)
     assert is_def_eq(infer_type(h_Or_p_q2), infer_type(h_Or_p_q2))
 
+    # Check true's trivial recursor
+    assert is_def_eq(
+        Apply( Recursor(
+            type = InstantiatedConstructedType(true,(), ()),
+            result_type = Type,
+            match_cases = (
+                Variable(Type, Token('X')),
+            )
+        ), true_intro),
+        Variable(Type, Token('X'))
+    )
+
     # Check proof irrelevance
     assert is_def_eq(h_Or_p_q1, h_Or_p_q2)
     assert not is_def_eq(h_Or_p_q1, h_And_p_p)
@@ -387,10 +399,21 @@ def test_eq():
     T = Variable(Type, Token('T'))
     x = Variable(T, Token('x'))
     y = Variable(T, Token('y'))
+    z = Variable(T, Token('z'))
     eq_xy = InstantiatedConstructedType(
         type = Eq,
         type_args = (T, x,),
         type_indexes = (y,)
+    )
+    eq_yz = InstantiatedConstructedType(
+        type = Eq,
+        type_args = (T, y,),
+        type_indexes = (z,)
+    )
+    eq_xz = InstantiatedConstructedType(
+        type = Eq,
+        type_args = (T, x,),
+        type_indexes = (z,)
     )
     heq_xx = rfl(x)
     heq_xy = Variable(
@@ -401,8 +424,47 @@ def test_eq():
         ),
         Token('heq_pq')
     )
+    heq_xz = Variable(InstantiatedConstructedType(Eq, (T,x), (z,)), Token('heq_xz'))
+    heq_yz = Variable(InstantiatedConstructedType(Eq, (T,y), (z,)), Token('heq_yz'))
     assert is_def_eq(infer_type(heq_xy), eq_xy)
     assert not is_def_eq(infer_type(heq_xx), heq_xy)
+
+    Apply(Recursor(
+        type = eq_xy,
+        result_type = Lambda(Token('t'), T, eq_xy),
+        match_cases = (
+            heq_xy,
+        ),
+    ), heq_xy)
+
+    thm_eq_transitive = lambda_chain(
+        arg_names = [Token('T'), Token('x'), Token('y'), Token('heq_xy'), Token('heq_yz')],
+        arg_types = [Type, T, T, eq_xy, eq_yz],
+        body = Apply(
+            Recursor(
+                type = eq_xy,
+                result_type = Lambda(
+                    Token('t'),
+                    T,
+                    InstantiatedConstructedType(
+                        type = Eq,
+                        type_args = (T, Variable(T, Token('x'))),
+                        type_indexes = (Variable(T, Token('t')),),
+                    ),
+                ),
+                match_cases = (
+                    Variable(eq_xy, Token('heq_xy')),
+                ),
+            ),
+            Variable(eq_xy, Token('heq_xy')),
+        )
+    )
+    proven_heq_xz = apply_list(
+            thm_eq_transitive,
+            [T, x, y, heq_xy, heq_yz]
+        )
+    assert is_def_eq(infer_type(proven_heq_xz), eq_xz)
+    assert is_def_eq(proven_heq_xz, heq_xz)
 
 def test_fails():
     with pytest.raises(AssertionError):

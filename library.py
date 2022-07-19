@@ -134,16 +134,17 @@ def or_outro(or_p_q, p, q, r, p_then_r, q_then_r):
         or_p_q,
     )
 
+_type = Variable(Type, Token('type'))
 Eq = ConstructedType(
     constructors = (
         ConstructorTemplate(
             name = Token('rfl'),
-            arg_names = (Token('val'),),
-            arg_types = (Variable(Type, Token('type')),),
-            result_indexes = (Variable(Variable(Type, Token('type')), Token('val2')),),
+            arg_names = (),
+            arg_types = (),
+            result_indexes = (Variable(_type, Token('val2')),),
         ),
     ),
-    args = ((Token('type'), Type), (Token('val1'), Variable(Type, Token('type')))),
+    args = ((Token('type'), Type), (Token('val1'), _type)),
     indexes = ((Token('val2'), Variable(Type, Token('type'))),),
     type = Prop,
     name = Token('Eq')
@@ -153,7 +154,7 @@ def rfl(a):
     return Constructor(
         type = Eq,
         constructor_index = 0,
-        args = (a,),
+        args = (),
         type_args = (type,a),
     )
 
