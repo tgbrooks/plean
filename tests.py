@@ -284,7 +284,6 @@ def test_logic():
         hr
     )
 
-    and_p_q = InstantiatedConstructedType(And, (Variable(Prop, Token('p')), Variable(Prop, Token('q'))), ())
     and_p_q_implies_or_p_q = Lambda(
         Token('p'),
         Prop,
@@ -293,13 +292,13 @@ def test_logic():
             Prop,
             Lambda(
                 Token("h_and_p_q"),
-                and_p_q,
+                And_p_q,
                 or_intro_left(
                     Variable(Prop, Token('p')),
                     Variable(Prop, Token('q')),
                     and_outro_left(
                         Variable(
-                            and_p_q,
+                            And_p_q,
                             Token('h_and_p_q')
                         ),
                         Variable(Prop, Token('p')),
