@@ -1,3 +1,8 @@
+'''
+Write some basic mathematical facts using Plean
+Such as true, false, Nat(ural numbers), Eq(uals), etc.
+'''
+
 from plean import *
 
 # Definitions
@@ -200,35 +205,6 @@ nat_twist = Recursor(
         Lambda(Token('n'), Nat, nat_zero),
     ),
 )
-
-# Addition a + b = a if b is 0 else (a+1) + (b-1)
-#nat_add = Lambda(
-#    Token('a'),
-#    Nat,
-#    Lambda(
-#        Token('b'),
-#        Nat,
-#        Apply(
-#            Destructor(
-#                Nat,
-#                (
-#                    (tuple(), Variable(Nat, Token('a'))),
-#                    ((Token('b'),),
-#                        Apply(
-#                            Apply(
-#                                Constant(Token('nat_add')),
-#                                Constructor(nat_succ, (Variable(Nat, Token('a')),)),
-#                            ),
-#                            Variable(Nat, Token('b'))
-#                    )),
-#                ),
-#                Nat
-#            ),
-#            Variable(Nat, Token('b')),
-#        )
-#    )
-#)
-#constants['nat_add'] = nat_add
 
 nat_greater = Variable(
     Pi(

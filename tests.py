@@ -7,14 +7,14 @@ p = Variable(Prop, Token("p"))
 r = Variable(Prop, Token("r"))
 q = Variable(Prop, Token("q"))
 
-# p -> x
+# p |-> x
 f = Lambda(
     Token("p"),
     Prop,
     x,
 )
 
-# p -> r
+# p |-> r
 fr = Lambda(
     Token("p"),
     Prop,
@@ -24,21 +24,21 @@ app_f = Apply(f, q)
 app_fr = Apply(fr, q)
 
 
-# p -> p
+# p |-> p
 f_id = Lambda(
     Token("p"),
     Prop,
     Variable(Prop, Token("p"))
 )
 
-# p -> q -> p
+# p |-> q |-> p
 f_pqp = Lambda(
     Token("p"),
     Prop,
     Lambda(Token("q"), Prop, Variable(Prop, Token("p"))),
 )
 
-# p -> q -> q
+# p |-> q |-> q
 f_pqq = Lambda(
     Token("p"),
     Prop,
@@ -90,9 +90,9 @@ def test_whnf():
     assert whnf(nat_one) == nat_one
     assert whnf(nat_zero) == nat_zero
 
-    # (p -> x) q  == x
+    # (p |-> x) q  == x
     assert whnf(app_f) == x
-    # (p -> q -> p) x p == x
+    # (p |-> q |-> p) x p == x
     assert whnf(Apply(
         Apply(
             f_pqp,
@@ -101,7 +101,7 @@ def test_whnf():
         p
     )) == x
 
-    # (p -> q -> q) x p == p
+    # (p |-> q |-> q) x p == p
     assert whnf(Apply(
         Apply(
             f_pqq,

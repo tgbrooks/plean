@@ -5,7 +5,7 @@ class PleanException(Exception):
     pass
 
 def imax(u,v):
-    #impredicative maximum. Sort 0 (i.e. Prop) is impredicative
+    ''' impredicative maximum. Sort 0 (i.e. Prop) is impredicative '''
     if v == 0:
         return 0
     else:
@@ -207,6 +207,7 @@ Expression = Union[
 constants : dict[str, Expression] = {}
 
 def pretty_print(expr: Expression) -> str:
+    ''' pretty print an expression '''
     def pp(t: Expression) -> str:
         if isinstance(t, Variable):
             return f"{t.name.val}:{pp(t.type)}"
@@ -370,6 +371,7 @@ def instantiate_type_args(arg_spec: tuple[tuple[Token, 'Expression'],...], arg_v
 
 
 def whnf(t: Expression) -> Expression:
+    ''' weak head normal form (whnf) of an expression '''
     match t:
         # Non-trivial
         case Apply(func_expression, arg_expression):
@@ -414,6 +416,7 @@ def lambda_chain(arg_names: list[Token], arg_types: list[Expression], body: Expr
 
 
 def is_def_eq(t: Expression, s: Expression) -> bool:
+    ''' Test is expression t and s are definitionally equal to each other '''
     # Populate constants
     if isinstance(t, Constant):
         t = constants[t.name.val]
@@ -543,6 +546,7 @@ def is_def_eq(t: Expression, s: Expression) -> bool:
     return False
 
 def infer_type(expr: Expression) -> Expression:
+    ''' Given an expression, infer its type '''
     if isinstance(expr, Variable):
         return expr.type
     elif isinstance(expr, Constant):
